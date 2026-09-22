@@ -316,24 +316,22 @@
   $('.stop').onclick = () => sendCmd({ type: 'stop' });
   $('.interview').onclick = () => sendCmd({ type: 'interview' });
 
-  // ---------- 页面变化侦测：切换 SKU/款式导致价格变化时，推给 Agent 更新快照 ----------
+  // ---------- 页面变化侦测：浏览器 DOM 一变，面板 PAGE 卡立即跟着刷 ----------
   let lastPageSig = '';
   function pageSig() { const p = scrapePage(); return `${p.item}|${p.price}|${p.promo}`; }
-  function watchPageChanges() {
-    lastPageSig = pageSig();
-    let timer = null;
-    const check = () => {
-      const now = pageSig();
-      if (now !== lastPageSig) {
-        lastPageSig = now;
-        refreshPageCard(); // 面板 PAGE 卡实时刷新
-        if (wsReady) sendCmd({ type: 'page_update', page: scrapePage() });
-      }
-    };
-    const obs = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(check, 800); });
-    obs.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true });
+  function checkPage() {
+    refreshPageCard(); // 始终刷新卡片（实时读 DOM，不等挂起再开）
+    const now = pageSig();
+    if (now !== lastPageSig) {
+      lastPageSig = now;
+      if (wsReady) sendCmd({ type: 'page_update', page: scrapePage() });
+    }
   }
-  watchPageChanges();
+  let mutTimer = null;
+  new MutationObserver(() => { clearTimeout(mutTimer); mutTimer = setTimeout(checkPage, 600); })
+    .observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true });
+  setInterval(checkPage, 1500); // 轮询兜底：复杂电商 DOM / iframe 价格变化也兜住
+  checkPage();
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.type === 'coolbuy:toggle') {
