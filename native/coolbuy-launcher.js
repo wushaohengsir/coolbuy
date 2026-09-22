@@ -71,7 +71,41 @@ async function handle(msg) {
       killAgent();
       send({ type: 'killed' });
       break;
+    case 'list_devices':
+      listDevices()
+        .then((devices) => send({ type: 'devices', devices }))
+        .catch((e) => send({ type: 'error', message: String(e?.message || e) }));
+      break;
   }
+}
+
+/** 列出本机 dshow 音频输入设备（ffmpeg -list_devices），返回 {label, value} 列表 */
+function listDevices() {
+  return new Promise((resolve) => {
+    const ff = spawn('ffmpeg', ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+      windowsHide: true,
+    });
+    let out = '';
+    ff.stderr.on('data', (d) => { out += d; });
+    ff.on('error', () => resolve([]));
+    ff.on('close', () => resolve(parseDevices(out)));
+    setTimeout(() => { try { ff.kill(); } catch {} resolve([]); }, 8000);
+  });
+}
+
+function parseDevices(stderr) {
+  const lines = stderr.split(/\r?\n/);
+  const devices = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/"([^"]+)"\s+\(audio\)/);
+    if (!m) continue;
+    const friendly = m[1];
+    const alt = (lines[i + 1] || '').match(/Alternative name "([^"]+)"/);
+    // 用 alternative name 最稳（友好名可能重名），label 给人看
+    devices.push({ label: friendly, value: alt ? `audio=${alt[1]}` : `audio=${friendly}` });
+  }
+  return devices;
 }
 
 function portOpen() {

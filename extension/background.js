@@ -26,6 +26,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
     return true;
   }
+  if (msg?.type === 'coolbuy:list-devices') {
+    // 列出本机麦克风（走 native 启动器跑 ffmpeg，不依赖 agent 是否在跑）
+    nativeCall({ type: 'list_devices' })
+      .then((r) => sendResponse({ ok: r.type === 'devices', devices: r.devices || [] }))
+      .catch((e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
   if (msg?.type === 'coolbuy:fetch-models') {
     // 拉取 OpenAI 兼容的 /models 列表（host_permissions 让后台可跨域）
     (async () => {

@@ -258,6 +258,10 @@
           </select>
         </div>
         <div class="field"><label>本地音色 ID（Kokoro，45-48 女声 / 49-52 男声）</label><input id="TTS_SPEAKER_ID" type="number" min="0" max="53" placeholder="46"></div>
+        <div class="field"><label>麦克风设备（录音用）</label>
+          <select id="MIC_DEVICE" style="width:100%;padding:7px 9px;border:1px solid #ddd;border-radius:8px;font-size:13px;"></select>
+          <button id="refresh-devices" style="width:100%;margin-top:4px;padding:6px;border:1px dashed #0d7a6f;border-radius:8px;background:#f0fbfa;color:#0d7a6f;font-size:12px;cursor:pointer;">刷新设备列表</button>
+        </div>
         <div class="field"><label>火山引擎 App ID（TTS 用）</label><input id="DOUBAO_APP_ID" type="text" placeholder="你的 App ID"></div>
         <div class="field"><label>火山引擎 Access Key（TTS 用）</label><input id="DOUBAO_ACCESS_KEY" type="password" placeholder="你的 Access Key"></div>
         <div class="field"><label>大模型 API Key（LLM 用）</label><input id="LLM_API_KEY" type="password" placeholder="你的 LLM API Key"></div>
@@ -311,7 +315,7 @@
   $('.x').onclick = () => panel.classList.remove('show');
 
   // ---------- 设置面板：用户填自己的 API key（存 chrome.storage.local，Start 时注入本地 Agent） ----------
-  const CONFIG_FIELDS = ['TTS_PROVIDER', 'TTS_SPEAKER_ID', 'DOUBAO_APP_ID', 'DOUBAO_ACCESS_KEY', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL'];
+  const CONFIG_FIELDS = ['TTS_PROVIDER', 'TTS_SPEAKER_ID', 'MIC_DEVICE', 'DOUBAO_APP_ID', 'DOUBAO_ACCESS_KEY', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL'];
 
   function toggleSettings(show) {
     $('.main').hidden = show;
@@ -351,8 +355,41 @@
   chrome.storage.local.get('coolbuyConfig', (r) => {
     const cfg = r.coolbuyConfig || {};
     for (const k of CONFIG_FIELDS) { const el = $('#' + k); if (el) el.value = cfg[k] || ''; }
+    if (cfg.MIC_DEVICE) populateDevices([], cfg.MIC_DEVICE); // 先显示已保存设备，可再刷新拉全列表
     syncTtsFields(); // 根据 TTS 引擎回填后，正确显示/隐藏字段
   });
+
+  // 麦克风设备：拉本机 dshow 设备列表填充下拉（走 native 启动器跑 ffmpeg）
+  function populateDevices(devices, selected) {
+    const sel = $('#MIC_DEVICE');
+    sel.innerHTML = '';
+    for (const d of devices) {
+      const o = document.createElement('option');
+      o.value = d.value;
+      o.textContent = d.label;
+      sel.appendChild(o);
+    }
+    if (selected) {
+      if (![...sel.options].some((o) => o.value === selected)) {
+        const o = document.createElement('option');
+        o.value = selected; o.textContent = selected + '（当前保存）';
+        sel.appendChild(o);
+      }
+      sel.value = selected;
+    }
+  }
+  $('#refresh-devices').onclick = async () => {
+    const btn = $('#refresh-devices');
+    btn.textContent = '拉取中…';
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: 'coolbuy:list-devices' });
+      if (!resp?.ok) throw new Error(resp?.error || '拉取失败');
+      populateDevices(resp.devices, $('#MIC_DEVICE').value || undefined);
+      btn.textContent = `已找到 ${resp.devices.length} 个设备，选一个后保存`;
+    } catch (e) {
+      btn.textContent = '拉取失败，点重试';
+    }
+  };
 
   // TTS 引擎切换：条件显示火山 key 或本地音色
   function syncTtsFields() {
