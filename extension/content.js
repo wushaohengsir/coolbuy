@@ -85,16 +85,32 @@
   // ---------- WS 客户端 ----------
   let ws = null;
   let wsReady = false;
+  let manualClose = false;
 
   function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+    manualClose = false;
     ws = new WebSocket(BRIDGE_URL);
-    ws.onopen = () => { wsReady = true; setStatus('已连接本地 Agent', '按 Start 开始聊，或直接按 Interview 让小冷先问'); };
+    ws.onopen = () => {
+      wsReady = true;
+      if (pendingStart) { // Start 键拉起进程后：自动开始会话
+        pendingStart = false;
+        sendCmd({ type: 'start', page: refreshPageCard() });
+      } else {
+        setStatus('已连接本地 Agent', '按 Start 开始聊，或直接按 Interview 让小冷先问');
+      }
+    };
     ws.onmessage = (e) => { try { handleEvent(JSON.parse(e.data)); } catch {} };
     ws.onclose = () => {
       wsReady = false;
-      setStatus('本地 Agent 未连接', '先在终端运行：node agent-b.js --bridge');
-      setTimeout(connect, 3000); // 断线重连
+      if (!manualClose && agentRunning) {
+        // 意外断开（进程死了/被杀了）
+        agentRunning = false;
+        setStartBtn(false);
+        setStatus('本地 Agent 已断开', '按 Start 重新启动');
+      } else if (!manualClose) {
+        setStatus('未启动', '按 Start 启动本地 Agent');
+      }
     };
     ws.onerror = () => { try { ws.close(); } catch {} };
   }
@@ -161,6 +177,7 @@
         font-size: 14px; font-weight: 600; cursor: pointer; background: #fff;
       }
       button.start { background: #2f3a38; color: #fff; border-color: #2f3a38; }
+      button.start.running { background: #c0392b; border-color: #c0392b; } /* 红色 Start：进程在跑，再按杀死 */
       button.interview { background: #0d7a6f; color: #fff; border-color: #0d7a6f; }
       button:active { transform: translateY(1px); }
       .log { max-height: 140px; overflow-y: auto; padding: 0 14px 10px; }
@@ -174,8 +191,8 @@
         <div class="x">✕</div>
       </div>
       <div class="card">
-        <div class="status">连接中…</div>
-        <div class="sub"></div>
+        <div class="status">按 Start 启动</div>
+        <div class="sub">本地 Agent 未运行</div>
       </div>
       <div class="card page">
         <div class="label">PAGE</div>
@@ -217,15 +234,58 @@
   }
 
   // ---------- 交互 ----------
+  // Start 键 = 本地 Agent 进程开关：灰 → 拉起进程并开会话（变红）；红 → 杀进程（变灰）
+  let agentRunning = false;
+  let launching = false;
+  let pendingStart = false; // 进程拉起后，WS 连上自动发 start
+
+  function setStartBtn(running) {
+    $('.start').classList.toggle('running', running);
+  }
+
   $('.x').onclick = () => panel.classList.remove('show');
-  $('.start').onclick = () => { $('.log').innerHTML = ''; sendCmd({ type: 'start', page: refreshPageCard() }); };
+
+  $('.start').onclick = async () => {
+    if (launching) return;
+    if (!agentRunning) {
+      launching = true;
+      setStatus('正在启动本地 Agent…', '首次约 5~10 秒（加载本地模型）');
+      try {
+        const resp = await chrome.runtime.sendMessage({ type: 'coolbuy:launch' });
+        if (!resp?.ok) throw new Error(resp?.error || '启动器未响应');
+        agentRunning = true;
+        setStartBtn(true);
+        $('.log').innerHTML = '';
+        pendingStart = true;
+        connect(); // 连上后自动开始会话
+      } catch (e) {
+        setStatus('启动失败', String(e?.message || e));
+      } finally {
+        launching = false;
+      }
+    } else {
+      // 红色 Start = 硬杀：结束会话 + 杀死本地进程
+      sendCmd({ type: 'stop' });
+      try { await chrome.runtime.sendMessage({ type: 'coolbuy:shutdown' }); } catch {}
+      agentRunning = false;
+      setStartBtn(false);
+      manualClose = true;
+      try { ws?.close(); } catch {}
+      setStatus('已停止', '本地 Agent 进程已结束');
+    }
+  };
+
+  // Stop = 软停：只停止语音对话，本地进程留着（下次 Start 秒开）
   $('.stop').onclick = () => sendCmd({ type: 'stop' });
   $('.interview').onclick = () => sendCmd({ type: 'interview' });
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.type === 'coolbuy:toggle') {
       panel.classList.toggle('show');
-      if (panel.classList.contains('show')) { connect(); refreshPageCard(); }
+      if (panel.classList.contains('show')) {
+        refreshPageCard();
+        if (!agentRunning) setStatus('未启动', '按 Start 启动本地 Agent（无需命令行）');
+      }
     }
   });
 })();
