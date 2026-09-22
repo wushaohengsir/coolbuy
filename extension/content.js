@@ -271,7 +271,13 @@
 
   $('.x').onclick = () => panel.classList.remove('show');
 
+  // 扩展刷新后旧面板还留在页面里（chrome.runtime 已失效）：给可懂的人话提示
+  function contextAlive() {
+    try { return !!chrome.runtime?.id; } catch { return false; }
+  }
+
   $('.start').onclick = async () => {
+    if (!contextAlive()) { setStatus('扩展已更新', '请按 F5 刷新本页面'); return; }
     if (launching) return;
     if (!agentRunning) {
       launching = true;
