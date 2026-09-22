@@ -73,6 +73,28 @@
     return null;
   }
 
+  // ---------- 详情深挖（大脑通过桥主动索要：规格参数/详情文本） ----------
+  function scrapeDetail() {
+    const base = scrapePage();
+    // 电商详情/规格常见容器（jd / taobao / 通用）
+    const SEL = [
+      '.Ptable', '.parameter2', '#J_DivItemDesc', '.item-description',
+      '.attributes', '#detail', '.desc', '[class*="spec"]', '[class*="param"]',
+      '[id*="detail"]', '[class*="product-info"]',
+    ];
+    let detailText = '';
+    for (const sel of SEL) {
+      const el = document.querySelector(sel);
+      if (el && el.innerText.trim().length > 50) { detailText = el.innerText; break; }
+    }
+    if (!detailText) detailText = document.body?.innerText || ''; // 兜底：整页文本
+    return {
+      ...base,
+      title: document.title,
+      detail: detailText.replace(/\s+/g, ' ').trim().slice(0, 1500),
+    };
+  }
+
   function findPromo(text) {
     const t = (text || document.body?.innerText || '').slice(0, 5000);
     const m = t.match(/(限时[^。\n]{0,16}|秒杀|仅剩[^。\n]{0,12}|还剩[^。\n]{0,12}|满\d+减\d+|直降\d+|前\d+名[^。\n]{0,10})/);
@@ -143,6 +165,10 @@
       }
       case 'error':
         setStatus('出错了', ev.message);
+        break;
+      case 'fetch_page':
+        // 大脑索要页面详情：立即抓取回传（id 原样带回）
+        sendCmd({ type: 'page_detail', id: ev.id, detail: scrapeDetail() });
         break;
     }
   }

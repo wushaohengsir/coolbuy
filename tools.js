@@ -51,7 +51,7 @@ const toolSchemas = [
     type: 'function',
     function: {
       name: 'get_page_context',
-      description: '获取用户当前浏览器的页面信息（商品/价格/促销话术）。对话开始时或需要确认眼前这单时调用。',
+      description: '获取用户当前浏览器的页面信息（商品/价格/促销话术/规格详情）。对话开始时或需要确认眼前这单、查看商品详情时调用。',
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
@@ -74,10 +74,19 @@ const toolSchemas = [
 ];
 
 // ---- 工具执行 ----
-function executeTool(name, args) {
+// 页面详情深挖钩子：bridge 模式下注入（问插件要实时 DOM 详情），CLI 模式为空退回快照
+let pageDetailFetcher = null;
+function setPageDetailFetcher(fn) { pageDetailFetcher = fn; }
+
+async function executeTool(name, args) {
   switch (name) {
-    case 'get_page_context':
-      return session.page || { error: 'no_page_context' };
+    case 'get_page_context': {
+      const base = session.page || { error: 'no_page_context' };
+      if (base.error || !pageDetailFetcher) return base;
+      // 向插件要最新详情（毫秒级 localhost 往返）；插件没回就用快照
+      const detail = await pageDetailFetcher();
+      return detail ? { ...base, ...detail } : base;
+    }
     case 'get_user_profile':
       return {
         ...state.profile,
@@ -124,4 +133,4 @@ function concludeSession() {
   return { outcome, insistCount, record: rec.record || null };
 }
 
-module.exports = { toolSchemas, executeTool, startSession, stopSession, concludeSession, session, state };
+module.exports = { toolSchemas, executeTool, startSession, stopSession, concludeSession, setPageDetailFetcher, session, state };

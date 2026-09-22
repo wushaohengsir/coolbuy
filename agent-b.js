@@ -340,6 +340,8 @@ if (has('--bridge')) {
     onStop: () => engine.stop(),
     onInterview: () => engine.interview(),
   });
+  // 大脑的"眼睛"：get_page_context 工具深挖时向插件要实时 DOM 详情
+  T.setPageDetailFetcher(() => bridge.fetchPage());
   bridge.start({ asr: asrProvider.name, tts: ttsProvider.name });
   log.sys('插件桥模式：等插件按 Start 后开始对话。Ctrl+C 退出');
   process.on('SIGINT', () => { engine.stop(); setTimeout(() => process.exit(0), 300); });

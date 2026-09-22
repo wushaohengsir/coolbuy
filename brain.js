@@ -59,7 +59,7 @@ async function think(userText, history, onText, { signal } = {}) {
     messages.push({ role: 'assistant', content: null, tool_calls: toolCalls.map((tc) => ({ type: 'function', ...tc })) });
     for (const tc of toolCalls) {
       const args = safeParse(tc.function.arguments);
-      const result = T.executeTool(tc.function.name, args);
+      const result = await T.executeTool(tc.function.name, args);
       messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
     }
   }

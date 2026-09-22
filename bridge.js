@@ -14,12 +14,16 @@
  *     { type:'outcome', outcome, insistCount }  会话结束：released(放行) | aborted(仅停止语音，无结论)
  *                                               ※ cooled 预留：将来大脑明确达成冷静共识时由工具层标记
  *     { type:'error', message }
+ *     { type:'fetch_page', id }             大脑索要页面详情（get_page_context 深挖）
+ *   插件 → Agent（除三键外）：
+ *     { type:'page_detail', id, detail }    回应 fetch_page；detail 为抓取结果对象
  *
  * 安全说明（TODO）：目前接受任何 localhost 页面的连接，本地任意网页都能驱动
  * 本 Agent。上线前应加一次性 token 握手（安装插件时生成，写入双方配置）。
  */
 
 'use strict';
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 
 const DEFAULT_PORT = 7901;
@@ -31,6 +35,7 @@ class Bridge {
     this.onInterview = onInterview;
     this.port = port || Number(process.env.BRIDGE_PORT) || DEFAULT_PORT;
     this.clients = new Set();
+    this.pending = new Map(); // fetch_page 请求 id → resolve
   }
 
   start(providers = {}) {
@@ -58,6 +63,11 @@ class Bridge {
       case 'start': this.onStart?.(msg.page || {}); break;
       case 'stop': this.onStop?.(); break;
       case 'interview': this.onInterview?.(); break;
+      case 'page_detail': {
+        const resolve = this.pending.get(msg.id);
+        if (resolve) { this.pending.delete(msg.id); resolve(msg.detail || null); }
+        break;
+      }
     }
   }
 
@@ -67,6 +77,17 @@ class Bridge {
     for (const ws of this.clients) {
       if (ws.readyState === 1) { try { ws.send(s); } catch {} }
     }
+  }
+
+  /** 大脑索要页面详情：一问一答，3 秒超时。无插件连接/超时返回 null。 */
+  fetchPage() {
+    if (!this.clients.size) return Promise.resolve(null);
+    const id = crypto.randomUUID();
+    return new Promise((resolve) => {
+      this.pending.set(id, resolve);
+      this.send({ type: 'fetch_page', id });
+      setTimeout(() => { if (this.pending.delete(id)) resolve(null); }, 3000);
+    });
   }
 }
 
