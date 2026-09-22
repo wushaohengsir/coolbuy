@@ -11,8 +11,8 @@
  * 打断（barge-in）：AI 说话期间 VAD 以 barge 模式持续监听，用户起话即
  * 静音 + abort LLM（发言通道 speaker.js 管代际与播放，引擎管大脑在途请求）。
  *
- * Provider：ASR 默认本地 SenseVoice（免 key），TTS 默认豆包云端；
- * 通过 data/providers.json 或 ASR_PROVIDER / TTS_PROVIDER 切换，见 providers.js。
+ * Provider：ASR 默认本地 SenseVoice（免 key），TTS 默认本地 Kokoro（免 key）；
+ * 通过插件设置页（经启动器注入的环境变量）切换，见 providers.js。
  */
 
 'use strict';

@@ -253,14 +253,13 @@
         <div class="note">key 只存在你本机（chrome.storage.local），不会上传。ASR 已是本地识别，无需填。填完点保存，下次 Start 生效。</div>
         <div class="field"><label>TTS 引擎</label>
           <select id="TTS_PROVIDER" style="width:100%;padding:7px 9px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
-            <option value="doubao">云端豆包（音质好，需填火山 key）</option>
-            <option value="local">本地 Kokoro（免 key，音质稍逊）</option>
+            <option value="local">本地 Kokoro（免 key，默认）</option>
+            <option value="doubao">云端豆包（音质好，需填火山 AppID + AccessKey）</option>
           </select>
         </div>
         <div class="field"><label>本地音色 ID（Kokoro，45-48 女声 / 49-52 男声）</label><input id="TTS_SPEAKER_ID" type="number" min="0" max="53" placeholder="46"></div>
         <div class="field"><label>火山引擎 App ID（TTS 用）</label><input id="DOUBAO_APP_ID" type="text" placeholder="你的 App ID"></div>
         <div class="field"><label>火山引擎 Access Key（TTS 用）</label><input id="DOUBAO_ACCESS_KEY" type="password" placeholder="你的 Access Key"></div>
-        <div class="field"><label>火山引擎 Secret Key（可选）</label><input id="DOUBAO_SECRET" type="password" placeholder="你的 Secret Key"></div>
         <div class="field"><label>大模型 API Key（LLM 用）</label><input id="LLM_API_KEY" type="password" placeholder="你的 LLM API Key"></div>
         <div class="field"><label>大模型 Base URL（可选，默认方舟）</label><input id="LLM_BASE_URL" type="text" placeholder="https://.../v1"></div>
         <div class="field"><label>大模型名称（可选，可先拉取列表）</label><input id="LLM_MODEL" type="text" list="model-list" placeholder="如 doubao-seed-2-0-lite"></div>
@@ -312,7 +311,7 @@
   $('.x').onclick = () => panel.classList.remove('show');
 
   // ---------- 设置面板：用户填自己的 API key（存 chrome.storage.local，Start 时注入本地 Agent） ----------
-  const CONFIG_FIELDS = ['TTS_PROVIDER', 'TTS_SPEAKER_ID', 'DOUBAO_APP_ID', 'DOUBAO_ACCESS_KEY', 'DOUBAO_SECRET', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL'];
+  const CONFIG_FIELDS = ['TTS_PROVIDER', 'TTS_SPEAKER_ID', 'DOUBAO_APP_ID', 'DOUBAO_ACCESS_KEY', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL'];
 
   function toggleSettings(show) {
     $('.main').hidden = show;
@@ -358,7 +357,7 @@
   // TTS 引擎切换：条件显示火山 key 或本地音色
   function syncTtsFields() {
     const isLocal = $('#TTS_PROVIDER').value === 'local';
-    ['DOUBAO_APP_ID', 'DOUBAO_ACCESS_KEY', 'DOUBAO_SECRET'].forEach((id) => {
+    ['DOUBAO_APP_ID', 'DOUBAO_ACCESS_KEY'].forEach((id) => {
       const f = $('#' + id)?.closest('.field'); if (f) f.hidden = isLocal;
     });
     const sid = $('#TTS_SPEAKER_ID')?.closest('.field'); if (sid) sid.hidden = !isLocal;

@@ -1,13 +1,7 @@
-/** .env 加载（被 agent.js / mic-test.js 复用） */
+/**
+ * .env 加载已废弃（2026-09-23）：
+ * 环境配置只认插件经 native 启动器注入的环境变量，不再读本机 .env 文件。
+ * 保留此空实现，避免改动所有 require('./agent-env')() 调用点。
+ */
 'use strict';
-const fs = require('fs');
-const path = require('path');
-
-module.exports = function loadEnv() {
-  const p = path.join(__dirname, '.env');
-  if (!fs.existsSync(p)) return;
-  for (const line of fs.readFileSync(p, 'utf8').split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
-  }
-};
+module.exports = function loadEnv() {};
