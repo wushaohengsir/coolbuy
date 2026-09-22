@@ -175,7 +175,16 @@
         // 大脑索要页面详情：立即抓取回传（id 原样带回）
         sendCmd({ type: 'page_detail', id: ev.id, detail: scrapeDetail() });
         break;
+      case 'fetch_profile':
+        // 大脑索要用户消费数据：抓取回传（真实历史订单抓取待接，先诚实返回空）
+        sendCmd({ type: 'profile', id: ev.id, profile: scrapeProfile() });
+        break;
     }
+  }
+
+  // ---------- 用户消费数据抓取（待接入真实订单/购物车，目前诚实返回空，不造假） ----------
+  function scrapeProfile() {
+    return {};
   }
 
   // ---------- 面板 UI（Shadow DOM 隔离页面样式） ----------

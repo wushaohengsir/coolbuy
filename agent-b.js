@@ -398,8 +398,9 @@ if (has('--bridge')) {
     onPageUpdate: (page) => engine.updatePage(page),
     status: () => ({ active: engine.active }),   // 新面板连上时继承状态用
   });
-  // 大脑的"眼睛"：get_page_context 工具深挖时向插件要实时 DOM 详情
+  // 大脑的"眼睛"：get_page_context 工具深挖时向插件要实时 DOM 详情；用户数据同理由插件抓
   T.setPageDetailFetcher(() => bridge.fetchPage());
+  T.setProfileFetcher(() => bridge.fetchProfile());
   bridge.start({ asr: asrProvider.name, tts: ttsProvider.name });
   log.sys('插件桥模式：等插件按 Start 后开始对话。Ctrl+C 退出');
   process.on('SIGINT', () => { engine.stop(); setTimeout(() => process.exit(0), 300); });

@@ -73,6 +73,11 @@ class Bridge {
         if (resolve) { this.pending.delete(msg.id); resolve(msg.detail || null); }
         break;
       }
+      case 'profile': {
+        const resolve = this.pending.get(msg.id);
+        if (resolve) { this.pending.delete(msg.id); resolve(msg.profile || null); }
+        break;
+      }
     }
   }
 
@@ -91,6 +96,17 @@ class Bridge {
     return new Promise((resolve) => {
       this.pending.set(id, resolve);
       this.send({ type: 'fetch_page', id });
+      setTimeout(() => { if (this.pending.delete(id)) resolve(null); }, 3000);
+    });
+  }
+
+  /** 大脑索要用户消费数据（插件抓取）：一问一答，3 秒超时。 */
+  fetchProfile() {
+    if (!this.clients.size) return Promise.resolve(null);
+    const id = crypto.randomUUID();
+    return new Promise((resolve) => {
+      this.pending.set(id, resolve);
+      this.send({ type: 'fetch_profile', id });
       setTimeout(() => { if (this.pending.delete(id)) resolve(null); }, 3000);
     });
   }

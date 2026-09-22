@@ -14,26 +14,25 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 
-// ---- 本地持久状态（用户画像 + 历史会话） ----
+// ---- 本地持久状态（用户昵称 + 历史会话；消费数据由插件抓取，不做本地 mock） ----
 let state = {
   profile: {
-    nickname: '老板',
-    monthlyBudget: 800,
-    impulseThreshold: 200,
-    savingsGoal: { name: '日本旅行基金', progress: 62 },
+    nickname: '老板', // 人设称呼，非真实数据
   },
-  purchases: [
-    { item: '蓝牙音箱', price: 299, date: '上个月' },
-    { item: '机械键盘键帽', price: 159, date: '三周前' },
-  ],
-  sessions: [],      // 已结束的协商会话
+  sessions: [],      // 已结束的协商会话（真实）
 };
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 try {
   const disk = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
   state = { ...state, ...disk };
-  delete state.wishlist; // 愿望单架构已下线，清掉旧数据
+  delete state.wishlist;   // 愿望单架构已下线
+  delete state.purchases;  // 旧的 mock 假消费记录已删
+  if (state.profile) {
+    delete state.profile.monthlyBudget;
+    delete state.profile.impulseThreshold;
+    delete state.profile.savingsGoal;
+  }
 } catch {}
 function save() { fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2)); }
 
@@ -59,7 +58,7 @@ const toolSchemas = [
     type: 'function',
     function: {
       name: 'get_user_profile',
-      description: '获取用户消费画像：月预算、单件冲动警戒线、近期消费记录、储蓄目标。',
+      description: '获取用户基本信息。当前仅昵称；真实消费数据由浏览器插件抓取提供，没有就返回"暂无"，不要编造。',
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
@@ -77,6 +76,9 @@ const toolSchemas = [
 // 页面详情深挖钩子：bridge 模式下注入（问插件要实时 DOM 详情），CLI 模式为空退回快照
 let pageDetailFetcher = null;
 function setPageDetailFetcher(fn) { pageDetailFetcher = fn; }
+// 用户数据钩子：bridge 模式下注入（问插件要真实消费数据），未接入则返回"暂无"
+let profileFetcher = null;
+function setProfileFetcher(fn) { profileFetcher = fn; }
 
 async function executeTool(name, args) {
   switch (name) {
@@ -87,11 +89,12 @@ async function executeTool(name, args) {
       const detail = await pageDetailFetcher();
       return detail ? { ...base, ...detail } : base;
     }
-    case 'get_user_profile':
-      return {
-        ...state.profile,
-        recentPurchases: state.purchases,
-      };
+    case 'get_user_profile': {
+      const base = { nickname: state.profile.nickname };
+      if (!profileFetcher) return { ...base, 消费数据: '暂无（真实数据待插件接入）' };
+      const real = await profileFetcher();
+      return real ? { ...base, ...real } : { ...base, 消费数据: '暂无' };
+    }
     case 'mark_insist':
       session.insistCount += 1;
       return { insistCount: session.insistCount, mustRelease: session.insistCount >= 2 };
@@ -140,4 +143,4 @@ function concludeSession() {
   return { outcome, insistCount, record: rec.record || null };
 }
 
-module.exports = { toolSchemas, executeTool, startSession, stopSession, concludeSession, updatePage, setPageDetailFetcher, session, state };
+module.exports = { toolSchemas, executeTool, startSession, stopSession, concludeSession, updatePage, setPageDetailFetcher, setProfileFetcher, session, state };
