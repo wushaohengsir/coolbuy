@@ -26,6 +26,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
     return true;
   }
+  if (msg?.type === 'coolbuy:fetch-models') {
+    // 拉取 OpenAI 兼容的 /models 列表（host_permissions 让后台可跨域）
+    (async () => {
+      try {
+        const base = (msg.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '');
+        const res = await fetch(`${base}/models`, {
+          headers: { Authorization: `Bearer ${msg.apiKey}` },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const j = await res.json();
+        const models = (j.data || []).map((m) => m.id).filter(Boolean).sort();
+        sendResponse({ ok: true, models });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
 });
 
 let nativePort = null;

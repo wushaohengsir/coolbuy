@@ -262,8 +262,10 @@
         <div class="field"><label>火山引擎 Access Key（TTS 用）</label><input id="DOUBAO_ACCESS_KEY" type="password" placeholder="你的 Access Key"></div>
         <div class="field"><label>火山引擎 Secret Key（可选）</label><input id="DOUBAO_SECRET" type="password" placeholder="你的 Secret Key"></div>
         <div class="field"><label>大模型 API Key（LLM 用）</label><input id="LLM_API_KEY" type="password" placeholder="你的 LLM API Key"></div>
-        <div class="field"><label>大模型 Base URL（可选，默认方舟）</label><input id="LLM_BASE_URL" type="text" placeholder="https://..."></div>
-        <div class="field"><label>大模型名称（可选）</label><input id="LLM_MODEL" type="text" placeholder="如 doubao-seed-2-0-lite"></div>
+        <div class="field"><label>大模型 Base URL（可选，默认方舟）</label><input id="LLM_BASE_URL" type="text" placeholder="https://.../v1"></div>
+        <div class="field"><label>大模型名称（可选，可先拉取列表）</label><input id="LLM_MODEL" type="text" list="model-list" placeholder="如 doubao-seed-2-0-lite"></div>
+        <datalist id="model-list"></datalist>
+        <div class="field"><button id="fetch-models" style="width:100%;padding:8px;border:1px dashed #0d7a6f;border-radius:8px;background:#f0fbfa;color:#0d7a6f;font-size:13px;cursor:pointer;">拉取模型列表（需先填 Base URL + API Key）</button></div>
         <div class="sbtns">
           <button class="interview" id="save-config">保存</button>
           <button id="back-config">返回</button>
@@ -325,6 +327,26 @@
       toggleSettings(false);
       setStatus('已保存', 'key 已存本地，下次 Start 会用你的 API');
     });
+  };
+
+  // 拉取 OpenAI 兼容的模型列表（走后台跨域）
+  $('#fetch-models').onclick = async () => {
+    const baseUrl = $('#LLM_BASE_URL').value.trim();
+    const apiKey = $('#LLM_API_KEY').value.trim();
+    if (!apiKey) { setStatus('缺少 API Key', '先填大模型 API Key 再拉取'); return; }
+    const btn = $('#fetch-models');
+    btn.textContent = '拉取中…';
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: 'coolbuy:fetch-models', baseUrl, apiKey });
+      if (!resp?.ok) throw new Error(resp?.error || '拉取失败');
+      const dl = $('#model-list');
+      dl.innerHTML = '';
+      for (const m of resp.models) { const o = document.createElement('option'); o.value = m; dl.appendChild(o); }
+      btn.textContent = `已拉取 ${resp.models.length} 个模型，点上面输入框选择`;
+    } catch (e) {
+      btn.textContent = '拉取失败，点重试';
+      setStatus('拉取失败', String(e?.message || e));
+    }
   };
   // 打开面板时回填已保存的 key
   chrome.storage.local.get('coolbuyConfig', (r) => {
