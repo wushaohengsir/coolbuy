@@ -149,6 +149,35 @@ if (has('--text')) {
   return;
 }
 
+// ---------- VAD 调试：实时打印人声概率，定位"听不到"在音频采集还是 VAD 阈值 ----------
+if (has('--vad-debug')) {
+  const { SileroVad } = require('./vad');
+  let n = 0;
+  const vad = new SileroVad({
+    onSpeechStart: () => console.log(c.green('  [起话]')),
+    onSpeechEnd: async (audio) => {
+      const t = Date.now();
+      const r = await asrProvider.recognize(audio);
+      console.log(c.cyan(`  [识别] ${JSON.stringify(r.text)}`), c.dim(`${(audio.length / 32000).toFixed(2)}s ${Date.now() - t}ms`));
+    },
+  });
+  const orig = vad._onProb.bind(vad);
+  let frameIdx = 0;
+  vad._onProb = (p, f) => {
+    if (frameIdx++ % 5 === 0) console.log(c.dim(`    p=${p.toFixed(2)} ${p >= 0.30 ? 'V' : '·'} state=${vad.state} hit=${vad.hitCount}`));
+    return orig(p, f);
+  };
+  const mic = spawn(process.env.FFMPEG_PATH || 'ffmpeg', [
+    '-hide_banner', '-loglevel', 'error',
+    '-f', 'dshow', '-i', process.env.MIC_DEVICE || 'audio=麦克风阵列 (Realtek(R) Audio)',
+    '-ar', '16000', '-ac', '1', '-f', 's16le', '-',
+  ], { stdio: ['ignore', 'pipe', 'inherit'] });
+  mic.stdout.on('data', (chunk) => vad.write(chunk));
+  console.log(c.dim('\n  ── VAD 调试：开口说话，观察 p 值。p<0.30 是静音，人声应 >0.30 并触发[起话]。Ctrl+C 退出 ──\n'));
+  process.on('SIGINT', () => { try { mic.kill(); } catch {} process.exit(0); });
+  return;
+}
+
 // ---------- 全语音引擎（CLI 直接启动，或 --bridge 由插件远程启动） ----------
 // 打断设计：
 //   - VAD 全程常开，AI 说话时不再 pause，用户随时可以抢话
