@@ -24,8 +24,13 @@ function userConfig() {
 }
 
 function pick(kind, def) {
+  // 优先级：插件设置（经启动器注入的 env）> .env > data/providers.json > 默认
+  // 注意 env 里已包含插件配置（启动器注入）与 .env（agent-env 加载，不覆盖已有值），
+  // 两者都在 env 层，插件更高（先注入、.env 不覆盖）。providers.json 降为兜底。
+  const envVal = process.env[`${kind.toUpperCase()}_PROVIDER`];
+  if (envVal) return envVal.toLowerCase();
   const cfg = userConfig();
-  return (cfg[kind] || process.env[`${kind.toUpperCase()}_PROVIDER`] || def).toLowerCase();
+  return (cfg[kind] || def).toLowerCase();
 }
 
 function getAsr() {

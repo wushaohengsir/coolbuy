@@ -352,7 +352,18 @@
   chrome.storage.local.get('coolbuyConfig', (r) => {
     const cfg = r.coolbuyConfig || {};
     for (const k of CONFIG_FIELDS) { const el = $('#' + k); if (el) el.value = cfg[k] || ''; }
+    syncTtsFields(); // 根据 TTS 引擎回填后，正确显示/隐藏字段
   });
+
+  // TTS 引擎切换：条件显示火山 key 或本地音色
+  function syncTtsFields() {
+    const isLocal = $('#TTS_PROVIDER').value === 'local';
+    ['DOUBAO_APP_ID', 'DOUBAO_ACCESS_KEY', 'DOUBAO_SECRET'].forEach((id) => {
+      const f = $('#' + id)?.closest('.field'); if (f) f.hidden = isLocal;
+    });
+    const sid = $('#TTS_SPEAKER_ID')?.closest('.field'); if (sid) sid.hidden = !isLocal;
+  }
+  $('#TTS_PROVIDER').addEventListener('change', syncTtsFields);
 
   // 扩展刷新后旧面板还留在页面里（chrome.runtime 已失效）：给可懂的人话提示
   function contextAlive() {
