@@ -339,6 +339,7 @@ if (has('--bridge')) {
     onStart: (page) => engine.start(page),
     onStop: () => engine.stop(),
     onInterview: () => engine.interview(),
+    status: () => ({ active: engine.active }), // 新面板连上时继承状态用
   });
   // 大脑的"眼睛"：get_page_context 工具深挖时向插件要实时 DOM 详情
   T.setPageDetailFetcher(() => bridge.fetchPage());

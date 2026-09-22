@@ -142,7 +142,11 @@
   function handleEvent(ev) {
     switch (ev.type) {
       case 'ready':
-        setSub(`ASR=${ev.asr} · TTS=${ev.tts}`);
+        // 桥活着 = 本地 Agent 活着：跨页面状态继承（新页面面板恢复红色/会话状态）
+        agentRunning = true;
+        setStartBtn(true);
+        if (ev.session?.active) setStatus('对话进行中（已在新页面接管）', `ASR=${ev.asr} · TTS=${ev.tts}`);
+        else setStatus('本地 Agent 运行中', `按 Start 开始新一轮对话 · ASR=${ev.asr} · TTS=${ev.tts}`);
         break;
       case 'state':
         if (ev.state === 'listening') setStatus('在听…', '开口说话，说完停一下');
@@ -316,6 +320,7 @@
       panel.classList.toggle('show');
       if (panel.classList.contains('show')) {
         refreshPageCard();
+        connect(); // 探测桥：Agent 活着则继承状态（ready 事件恢复红色/会话），没活着保持灰色
         if (!agentRunning) setStatus('未启动', '按 Start 启动本地 Agent（无需命令行）');
       }
     }

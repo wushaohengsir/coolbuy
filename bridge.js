@@ -29,10 +29,11 @@ const { WebSocketServer } = require('ws');
 const DEFAULT_PORT = 7901;
 
 class Bridge {
-  constructor({ onStart, onStop, onInterview, port } = {}) {
+  constructor({ onStart, onStop, onInterview, status, port } = {}) {
     this.onStart = onStart;
     this.onStop = onStop;
     this.onInterview = onInterview;
+    this.status = status || (() => ({})); // 引擎状态快照（ready 时给新连上的面板做状态继承）
     this.port = port || Number(process.env.BRIDGE_PORT) || DEFAULT_PORT;
     this.clients = new Set();
     this.pending = new Map(); // fetch_page 请求 id → resolve
@@ -45,7 +46,7 @@ class Bridge {
     });
     this.wss.on('connection', (ws) => {
       this.clients.add(ws);
-      ws.send(JSON.stringify({ type: 'ready', ...providers }));
+      ws.send(JSON.stringify({ type: 'ready', ...providers, session: this.status() }));
       ws.on('message', (raw) => this._handle(raw));
       ws.on('close', () => this.clients.delete(ws));
       ws.on('error', () => this.clients.delete(ws));
