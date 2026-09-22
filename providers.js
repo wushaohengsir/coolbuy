@@ -51,9 +51,12 @@ function getTts() {
       const { synthesize } = require('./tts');
       return { name: 'doubao/seed-tts-2.0', synthesize };
     }
-    // case 'local': 本地 TTS（MeloTTS/Kokoro）待实现 —— 接口位置预留
+    case 'local': {
+      const { LocalTts } = require('./tts-local');
+      return new LocalTts();
+    }
     default:
-      throw new Error(`未知 TTS provider: ${which}（可选 doubao；local 待实现）`);
+      throw new Error(`未知 TTS provider: ${which}（可选 doubao / local）`);
   }
 }
 
