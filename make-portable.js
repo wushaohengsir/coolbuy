@@ -16,6 +16,15 @@ const PROXY = process.env.PORTABLE_PROXY || 'http://127.0.0.1:17897';
 
 function log(s) { console.log(`  [打包] ${s}`); }
 function sh(cmd, opts = {}) { return spawnSync(cmd, [], { shell: true, stdio: 'inherit', ...opts }); }
+/** 用 Windows 原生 Expand-Archive 解压 zip（GNU tar 会把 F:\ 路径当远程主机，不可靠） */
+function extractZip(zip, destDir) {
+  fs.mkdirSync(destDir, { recursive: true });
+  const r = spawnSync('powershell', [
+    '-NoProfile', '-Command',
+    `Expand-Archive -LiteralPath '${zip}' -DestinationPath '${destDir}' -Force`,
+  ], { stdio: 'inherit' });
+  return r.status === 0;
+}
 function download(url, dest) {
   if (fs.existsSync(dest) && fs.statSync(dest).size > 1000000) { log(`已存在，跳过下载 ${path.basename(dest)}`); return true; }
   log(`下载 ${url}`);
@@ -52,7 +61,7 @@ if (!fs.existsSync(path.join(DIST, 'node', 'node.exe'))) {
   const url = `https://npmmirror.com/mirrors/node/v${NODE_VERSION}/node-v${NODE_VERSION}-win-x64.zip`;
   if (download(url, zip)) {
     log('解压 node');
-    sh(`tar -xf "${zip}" -C "${DIST}"`);
+    extractZip(zip, DIST);
     const extracted = path.join(DIST, `node-v${NODE_VERSION}-win-x64`);
     if (fs.existsSync(extracted)) {
       copyDir(extracted, path.join(DIST, 'node'));
@@ -70,10 +79,11 @@ if (!fs.existsSync(path.join(DIST, 'ffmpeg', 'ffmpeg.exe'))) {
     log('解压 ffmpeg');
     const tmp = path.join(DIST, 'ffmpeg-tmp');
     fs.mkdirSync(tmp, { recursive: true });
-    sh(`tar -xf "${zip}" -C "${tmp}"`);
+    extractZip(zip, tmp);
     // 找 bin/ffmpeg.exe 和 bin/ffplay.exe
     const found = [];
     (function walk(d) {
+      if (!fs.existsSync(d)) return;
       for (const n of fs.readdirSync(d)) {
         const p = path.join(d, n);
         const st = fs.statSync(p);
