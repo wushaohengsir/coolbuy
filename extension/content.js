@@ -196,6 +196,14 @@
       .bar .brand { font-size: 11px; letter-spacing: .12em; color: #888; }
       .bar .name { font-weight: 700; font-size: 14px; }
       .bar .x { cursor: pointer; border: 1px solid #e5e5e5; border-radius: 8px; width: 26px; height: 26px; text-align: center; line-height: 24px; color: #999; }
+      .bar .gear { cursor: pointer; border: 1px solid #e5e5e5; border-radius: 8px; width: 26px; height: 26px; text-align: center; line-height: 24px; }
+      .settings { padding: 4px 14px 12px; }
+      .settings .field { margin-bottom: 10px; }
+      .settings label { display: block; font-size: 11px; color: #888; margin-bottom: 3px; }
+      .settings input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
+      .settings .note { font-size: 11px; color: #999; margin: 2px 0 10px; line-height: 1.4; }
+      .settings .sbtns { display: flex; gap: 8px; }
+      .settings .sbtns button { flex: 1; }
       .card { margin: 10px 12px; padding: 12px 14px; border-radius: 12px; background: #f3f5f4; }
       .status { font-weight: 700; font-size: 15px; }
       .sub { color: #777; margin-top: 2px; min-height: 18px; }
@@ -219,22 +227,40 @@
     <div class="panel">
       <div class="bar">
         <div><div class="brand">COOLBUY</div><div class="name">小冷 · 付款前聊两句</div></div>
-        <div class="x">✕</div>
+        <div style="display:flex;gap:6px;">
+          <div class="gear" title="设置 API key">⚙</div>
+          <div class="x">✕</div>
+        </div>
       </div>
-      <div class="card">
-        <div class="status">按 Start 启动</div>
-        <div class="sub">本地 Agent 未运行</div>
+      <div class="main">
+        <div class="card">
+          <div class="status">按 Start 启动</div>
+          <div class="sub">本地 Agent 未运行</div>
+        </div>
+        <div class="card page">
+          <div class="label">PAGE</div>
+          <div class="item">—</div>
+          <div class="meta">—</div>
+        </div>
+        <div class="log"></div>
+        <div class="btns">
+          <button class="start">Start</button>
+          <button class="stop">Stop</button>
+          <button class="interview">Interview</button>
+        </div>
       </div>
-      <div class="card page">
-        <div class="label">PAGE</div>
-        <div class="item">—</div>
-        <div class="meta">—</div>
-      </div>
-      <div class="log"></div>
-      <div class="btns">
-        <button class="start">Start</button>
-        <button class="stop">Stop</button>
-        <button class="interview">Interview</button>
+      <div class="settings" hidden>
+        <div class="note">key 只存在你本机（chrome.storage.local），不会上传。ASR 已是本地识别，无需填。填完点保存，下次 Start 生效。</div>
+        <div class="field"><label>火山引擎 App ID（TTS 用）</label><input id="DOUBAO_APP_ID" type="text" placeholder="你的 App ID"></div>
+        <div class="field"><label>火山引擎 Access Key（TTS 用）</label><input id="DOUBAO_ACCESS_KEY" type="password" placeholder="你的 Access Key"></div>
+        <div class="field"><label>火山引擎 Secret Key（可选）</label><input id="DOUBAO_SECRET" type="password" placeholder="你的 Secret Key"></div>
+        <div class="field"><label>大模型 API Key（LLM 用）</label><input id="LLM_API_KEY" type="password" placeholder="你的 LLM API Key"></div>
+        <div class="field"><label>大模型 Base URL（可选，默认方舟）</label><input id="LLM_BASE_URL" type="text" placeholder="https://..."></div>
+        <div class="field"><label>大模型名称（可选）</label><input id="LLM_MODEL" type="text" placeholder="如 doubao-seed-2-0-lite"></div>
+        <div class="sbtns">
+          <button class="interview" id="save-config">保存</button>
+          <button id="back-config">返回</button>
+        </div>
       </div>
     </div>`;
   document.documentElement.appendChild(host);
@@ -275,6 +301,29 @@
   }
 
   $('.x').onclick = () => panel.classList.remove('show');
+
+  // ---------- 设置面板：用户填自己的 API key（存 chrome.storage.local，Start 时注入本地 Agent） ----------
+  const CONFIG_FIELDS = ['DOUBAO_APP_ID', 'DOUBAO_ACCESS_KEY', 'DOUBAO_SECRET', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL'];
+
+  function toggleSettings(show) {
+    $('.main').hidden = show;
+    $('.settings').hidden = !show;
+  }
+  $('.gear').onclick = () => toggleSettings(true);
+  $('#back-config').onclick = () => toggleSettings(false);
+  $('#save-config').onclick = () => {
+    const cfg = {};
+    for (const k of CONFIG_FIELDS) cfg[k] = $('#' + k).value.trim();
+    chrome.storage.local.set({ coolbuyConfig: cfg }, () => {
+      toggleSettings(false);
+      setStatus('已保存', 'key 已存本地，下次 Start 会用你的 API');
+    });
+  };
+  // 打开面板时回填已保存的 key
+  chrome.storage.local.get('coolbuyConfig', (r) => {
+    const cfg = r.coolbuyConfig || {};
+    for (const k of CONFIG_FIELDS) { const el = $('#' + k); if (el) el.value = cfg[k] || ''; }
+  });
 
   // 扩展刷新后旧面板还留在页面里（chrome.runtime 已失效）：给可懂的人话提示
   function contextAlive() {

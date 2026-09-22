@@ -8,9 +8,12 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'coolbuy:launch') {
-    nativeCall({ type: 'start' })
-      .then((r) => sendResponse({ ok: r.type === 'started', ...r }))
-      .catch((e) => sendResponse({ ok: false, error: String(e) }));
+    // 带上用户保存的 API key，启动器 spawn 本地 Agent 时作为环境变量注入
+    chrome.storage.local.get('coolbuyConfig', (r) => {
+      nativeCall({ type: 'start', config: r.coolbuyConfig || {} })
+        .then((resp) => sendResponse({ ok: resp.type === 'started', ...resp }))
+        .catch((e) => sendResponse({ ok: false, error: String(e) }));
+    });
     return true; // 异步 sendResponse
   }
   if (msg?.type === 'coolbuy:shutdown') {

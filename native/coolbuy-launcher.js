@@ -55,6 +55,7 @@ async function handle(msg) {
         stdio: 'ignore',
         windowsHide: true,
         cwd: AGENT_CWD,
+        env: { ...process.env, ...envFromConfig(msg.config) }, // 用户的 API key 作为环境变量注入（agent 的 .env 加载不会覆盖已有值）
       });
       agent.on('exit', () => { agent = null; });
       try {
@@ -79,6 +80,15 @@ function portOpen() {
     s.once('connect', () => { s.end(); resolve(true); });
     s.once('error', () => resolve(false));
   });
+}
+
+/** 把插件传来的配置对象转成环境变量（只保留非空值） */
+function envFromConfig(config) {
+  const env = {};
+  for (const [k, v] of Object.entries(config || {})) {
+    if (typeof v === 'string' && v.trim()) env[k] = v.trim();
+  }
+  return env;
 }
 
 async function waitPort(timeoutMs) {
