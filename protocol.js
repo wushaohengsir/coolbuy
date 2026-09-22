@@ -129,7 +129,7 @@ function jsonFrame(event, obj, sessionId) {
     serialization: SERIAL_JSON,
     compression: COMPRESS_GZIP,
     event,
-    sessionId: event in {} || CONNECTION_EVENTS.has(event) ? undefined : sessionId,
+    sessionId: CONNECTION_EVENTS.has(event) ? undefined : sessionId,
     payload: zlib.gzipSync(Buffer.from(JSON.stringify(obj), 'utf8')),
   });
 }

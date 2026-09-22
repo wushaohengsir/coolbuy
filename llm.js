@@ -15,30 +15,43 @@ const ARK_MODEL = process.env.LLM_MODEL || process.env.ARK_MODEL || 'doubao-seed
  *   { type: 'delta', text }            文本增量
  *   { type: 'tool_calls', toolCalls }  完整工具调用数组（finish_reason==='tool_calls' 时）
  *   { type: 'done', finishReason }
+ * signal：外部 AbortSignal（打断机制用）。abort 后静默收尾，不抛错。
  */
-async function* chatStream({ messages, tools = undefined, model = ARK_MODEL }) {
+async function* chatStream({ messages, tools = undefined, model = ARK_MODEL, signal }) {
   if (process.env.LLM_MOCK === '1') {
     yield* mockStream(messages, tools);
     return;
   }
   if (!process.env.LLM_API_KEY && !process.env.ARK_API_KEY) throw new Error('缺少 LLM_API_KEY / ARK_API_KEY（或设 LLM_MOCK=1 用模拟）');
+  if (signal?.aborted) return;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(new Error('LLM 超时(60s)')), 60000);
-  const res = await fetch(`${ARK_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    signal: controller.signal,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.LLM_API_KEY || process.env.ARK_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      ...(tools && tools.length ? { tools, tool_choice: 'auto' } : {}),
-      stream: true,
-    }),
-  });
+  const onExternalAbort = () => controller.abort(signal.reason || new Error('已打断'));
+  signal?.addEventListener('abort', onExternalAbort, { once: true });
+
+  let res;
+  try {
+    res = await fetch(`${ARK_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.LLM_API_KEY || process.env.ARK_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        ...(tools && tools.length ? { tools, tool_choice: 'auto' } : {}),
+        stream: true,
+      }),
+    });
+  } catch (e) {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', onExternalAbort);
+    if (signal?.aborted) return; // 被打断：静默收尾
+    throw e;
+  }
   clearTimeout(timeout);
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -52,31 +65,40 @@ async function* chatStream({ messages, tools = undefined, model = ARK_MODEL }) {
   let acc = {}; // tool_calls 累积器 index -> {id, function:{name, arguments}}
   let finishReason = null;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let idx;
-    while ((idx = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, idx).trim();
-      buf = buf.slice(idx + 1);
-      if (!line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if (data === '[DONE]') continue;
-      let j;
-      try { j = JSON.parse(data); } catch { continue; }
-      const choice = j.choices?.[0];
-      if (!choice) continue;
-      if (choice.finish_reason) finishReason = choice.finish_reason;
-      const d = choice.delta || {};
-      if (d.content) yield { type: 'delta', text: d.content };
-      for (const tc of d.tool_calls || []) {
-        const a = (acc[tc.index] ||= { id: '', function: { name: '', arguments: '' } });
-        if (tc.id) a.id = tc.id;
-        if (tc.function?.name) a.function.name += tc.function.name;
-        if (tc.function?.arguments) a.function.arguments += tc.function.arguments;
+  try {
+    while (true) {
+      if (signal?.aborted) return; // 打断：丢弃剩余流
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 1);
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (data === '[DONE]') continue;
+        let j;
+        try { j = JSON.parse(data); } catch { continue; }
+        const choice = j.choices?.[0];
+        if (!choice) continue;
+        if (choice.finish_reason) finishReason = choice.finish_reason;
+        const d = choice.delta || {};
+        if (d.content) yield { type: 'delta', text: d.content };
+        for (const tc of d.tool_calls || []) {
+          const a = (acc[tc.index] ||= { id: '', function: { name: '', arguments: '' } });
+          if (tc.id) a.id = tc.id;
+          if (tc.function?.name) a.function.name += tc.function.name;
+          if (tc.function?.arguments) a.function.arguments += tc.function.arguments;
+        }
       }
     }
+  } catch (e) {
+    if (signal?.aborted) return; // abort 导致的 reader 抛错属正常收尾
+    throw e;
+  } finally {
+    signal?.removeEventListener('abort', onExternalAbort);
+    try { reader.releaseLock(); } catch {}
   }
   const toolCalls = Object.values(acc);
   if (finishReason === 'tool_calls' && toolCalls.length) {

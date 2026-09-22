@@ -19,7 +19,7 @@ const SYSTEM_PROMPT = `你是「小冷」，coolbuy 的冲动消费冷静协商�
 1. 确认：结合页面信息确认他在看什么、多少钱、促销话术是什么
 2. 问动机：区分"真需要"和"情绪性想要"（"是耳机真不行了，还是今天有点烦？"）
 3. 摆事实：调 get_user_profile 拿近期消费对照（"上个月那台音箱用过几次？"）
-4. 提延迟：调 add_wishlist 提 48 小时冷静期，框定为"还想要我提醒你买，一分不亏"
+4. 提延迟：口头建议晾 48 小时再说，框定为"还想要就回来买，一分不亏"
 5. 放行：调 mark_insist 后若 mustRelease=true，立刻痛快放行甚至帮比价，之后绝不再劝
 
 ## 硬规则
@@ -29,8 +29,9 @@ const SYSTEM_PROMPT = `你是「小冷」，coolbuy 的冲动消费冷静协商�
 - 不知道页面信息就调 get_page_context，别猜`;
 
 /** Agent 循环。onText(增量文本) 回调用于喂 TTS。
- *  返回完整回复文本。 */
-async function think(userText, history, onText) {
+ *  opts.signal：打断信号；abort 后停止生成，返回已生成的半截文本。
+ *  返回完整（或被打断时的半截）回复文本。 */
+async function think(userText, history, onText, { signal } = {}) {
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
     ...history,
@@ -39,17 +40,20 @@ async function think(userText, history, onText) {
 
   let fullText = '';
   for (let hop = 0; hop < 3; hop++) {
+    if (signal?.aborted) break;
     let finishReason = null;
     let toolCalls = null;
     for await (const ev of chatStream({
       messages,
       tools: T.toolSchemas,
+      signal,
     })) {
+      if (signal?.aborted) break;
       if (ev.type === 'delta') { fullText += ev.text; onText?.(ev.text); }
       if (ev.type === 'tool_calls') toolCalls = ev.toolCalls;
       if (ev.type === 'done') finishReason = ev.finishReason;
     }
-    if (finishReason !== 'tool_calls' || !toolCalls) break;
+    if (signal?.aborted || finishReason !== 'tool_calls' || !toolCalls) break;
 
     // 执行工具并回填，继续下一跳（DeepSeek 要求 tool_calls 项含 type:"function"）
     messages.push({ role: 'assistant', content: null, tool_calls: toolCalls.map((tc) => ({ type: 'function', ...tc })) });
@@ -63,10 +67,10 @@ async function think(userText, history, onText) {
 }
 
 /** Interview 模式：AI 主动反问，用户还没说话 */
-async function interview(history, onText) {
+async function interview(history, onText, opts) {
   const instruction =
     '（面试模式）用户还没说话。基于页面信息，主动向他提一个直击购买动机的问题。只问一个，口语短句。';
-  return think(instruction, history, onText);
+  return think(instruction, history, onText, opts);
 }
 
 function safeParse(s) { try { return JSON.parse(s || '{}'); } catch { return {}; } }
