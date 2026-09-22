@@ -3,6 +3,7 @@
   "name": "coolbuy 小冷 · 冲动消费冷静协商",
   "version": "0.1.0",
   "description": "付款前，一个语音 AI 跟你聊两句，帮你把真正的决定权拿回自己手里。",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6CpM+V1Z285rSTZqO5dmvH+Tszh28nWSo5UBRMl057R2veivLU6656KfDbjmN5MD/3qMilbLYZTYj+gxoMV+++iOuycGbd1kzGFmGqaXVyeNsuxB2Qw+AcqwW3DOStv5dP1zjKLtS+R6/bm3QsbbI7RtejQkAAtoNSbXMcujeb1lrf7YORbf9LTaoPEVOx6Ks4C1xBG0OGBsyIYjyQU8E5OqlOU9WEeWWUL4VCE9ynFNIVj5ggNJJl/aidkZC3RV5B9/ubQjROjp9MRgF2iJrrks6pckDNzFyX5jI+QlU19sFhsRNpwPRLXlef8OXgIXPgSnu5OPEuNj9KE3V8FgeQIDAQAB",
   "permissions": ["activeTab", "scripting", "nativeMessaging", "storage"],
   "host_permissions": ["<all_urls>"],
   "action": { "default_title": "coolbuy 小冷（点击开关面板）" },

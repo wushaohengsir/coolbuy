@@ -1,19 +1,16 @@
 /**
  * 注册 Native Messaging Host：生成 host manifest + 写注册表（HKCU，无需管理员）
- * 用法：node native/register.js <32位扩展ID>
- *   扩展ID：chrome://extensions → 打开开发者模式 → coolbuy 卡片上的 ID（a-p 字母）
+ * 用法：node native/register.js     （无需参数——扩展 ID 由 manifest 的固定 key 决定）
  */
+
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const id = process.argv[2];
-if (!id || !/^[a-p]{32}$/.test(id)) {
-  console.error('用法: node native/register.js <32位扩展ID（a-p）>');
-  console.error('扩展ID 在 chrome://extensions 开发者模式的 coolbuy 卡片上');
-  process.exit(1);
-}
+// 固定扩展 ID：由 extension/manifest.json 的 key（公钥）决定，任何机器都一致
+// 算法：SHA256(DER 公钥)[前16字节] → 每个 nibble 映射到 a-p
+const EXTENSION_ID = 'klnciafcpikgfonpgllfmldklfljolac';
 
 const manifestPath = path.join(__dirname, 'com.coolbuy.launcher.json');
 const manifest = {
@@ -21,7 +18,7 @@ const manifest = {
   description: 'coolbuy 本地 Agent 启动器（Start 键控制进程生死）',
   path: path.join(__dirname, 'launch.bat'),
   type: 'stdio',
-  allowed_origins: [`chrome-extension://${id}/`],
+  allowed_origins: [`chrome-extension://${EXTENSION_ID}/`],
 };
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 

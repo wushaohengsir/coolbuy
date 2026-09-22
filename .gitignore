@@ -31,3 +31,6 @@ models/
 
 # Native Messaging host manifest（register.js 按机器生成，含扩展ID）
 native/com.coolbuy.launcher.json
+
+# 扩展私钥（Web Store 上架用，不入库）
+extension.pem
