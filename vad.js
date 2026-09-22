@@ -42,6 +42,7 @@ class SileroVad {
     this.barge = false;          // barge 模式：播放中抬门槛
     this._analyzed = false;      // 本轮静音是否已送语义判停
     this._turnGen = 0;           // 轮次代际：作废迟到的判停结果
+    this._resetState = false;    // 标志位：下一帧从干净 LSTM 状态开始（抗竞态，见 _processFrame）
     this._pending = Buffer.alloc(0);
     this.ready = false;
     this._init(modelPath || path.join(__dirname, 'silero_vad.onnx')).catch((e) => {
@@ -60,6 +61,9 @@ class SileroVad {
   }
 
   async _processFrame(frame) {
+    // 标志位复位：在"这一帧"开始时把 LSTM 归零（而非 setBargeMode 里立即归零，
+    // 避免被异步 drain 里还在处理回声积压的旧帧覆盖）
+    if (this._resetState) { this.lstmState = null; this._resetState = false; }
     // s16le → float32
     const floats = new Float32Array(FRAME_SAMPLES);
     for (let i = 0; i < FRAME_SAMPLES; i++) floats[i] = frame.readInt16LE(i * 2) / 32768;
@@ -166,8 +170,9 @@ class SileroVad {
     this.missCount = 0;
     this._analyzed = false;
     this.hitCount = 0;
-    // 注意：不要重置 lstmState！Silero v5 的状态必须跨轮连续流动，
-    // 重置会把手动归零成退化态，导致下一轮概率塌成 ~0（多轮识别不行的真正根因）。
+    // 这里不重置 lstmState：一轮"听"内部（起话→判停）状态必须连续。
+    // 回声污染的状态在 setBargeMode(false)/resume() 处（播放结束/会话边界）清，
+    // 那个时机才是对的——详见那两处注释。
     this.onSpeechEnd?.(audio);
   }
 
@@ -182,6 +187,12 @@ class SileroVad {
     // 切换瞬间清计数，防旧计数跨模式误触发
     this.hitCount = 0;
     this.missCount = 0;
+    if (!on) {
+      // 播放结束：丢弃回声积压 + 下一帧从干净状态听（18s 扬声器回声污染了 LSTM，
+      // 不重置的话下一轮人声起判会聋）
+      this._pending = Buffer.alloc(0);
+      this._resetState = true;
+    }
   }
   resume() {
     this.speaking = false;
@@ -190,7 +201,8 @@ class SileroVad {
     this.preBuffer = [];
     this.hitCount = 0;
     this.missCount = 0;
-    // 不重置 lstmState：Silero v5 状态必须连续流动，暂停恢复也不该归零（否则下一轮概率塌）
+    this._pending = Buffer.alloc(0); // 丢弃积压
+    this._resetState = true;         // 下一帧从干净状态听（会话边界/暂停恢复）
   }
 }
 
