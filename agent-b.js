@@ -153,11 +153,13 @@ if (has('--text')) {
 if (has('--vad-debug')) {
   const { SileroVad } = require('./vad');
   let n = 0;
+  let asr = null;
+  try { asr = getAsr(); } catch (e) { console.error(c.red('ASR 初始化失败: ' + e.message)); process.exit(1); }
   const vad = new SileroVad({
     onSpeechStart: () => console.log(c.green('  [起话]')),
     onSpeechEnd: async (audio) => {
       const t = Date.now();
-      const r = await asrProvider.recognize(audio);
+      const r = await asr.recognize(audio);
       console.log(c.cyan(`  [识别] ${JSON.stringify(r.text)}`), c.dim(`${(audio.length / 32000).toFixed(2)}s ${Date.now() - t}ms`));
     },
   });
