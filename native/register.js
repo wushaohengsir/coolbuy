@@ -25,8 +25,16 @@ const manifest = {
 };
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
-execSync(
-  `reg add "HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\com.coolbuy.launcher" /ve /d "${manifestPath}" /f`,
-  { stdio: 'inherit' }
-);
+// 写注册表用 .reg 文件导入：避免路径含空格/引号时 reg add 命令行解析出错
+const regFile = path.join(__dirname, 'coolbuy-launcher.reg');
+const escaped = manifestPath.replace(/\\/g, '\\\\');
+fs.writeFileSync(regFile, [
+  'Windows Registry Editor Version 5.00',
+  '',
+  '[HKEY_CURRENT_USER\\Software\\Google\\Chrome\\NativeMessagingHosts\\com.coolbuy.launcher]',
+  `@="${escaped}"`,
+  '',
+].join('\r\n'));
+execSync(`reg import "${regFile}"`, { stdio: 'inherit' });
+fs.unlinkSync(regFile);
 console.log('\n注册完成。重启 Chrome 后，按面板的 Start 即可拉起本地 Agent。');
