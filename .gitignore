@@ -1,0 +1,27 @@
+# 密钥与本地配置
+.env
+.env.local
+*.local
+
+# 依赖
+node_modules/
+
+# 运行时状态
+data/
+
+# 测试产物：音频
+*.pcm
+*.mp3
+*.wav
+tts_test.*
+
+# 日志
+*.log
+npm-debug.log*
+dshow.log
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
