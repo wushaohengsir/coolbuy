@@ -16,6 +16,7 @@
 const { spawn } = require('child_process');
 const net = require('net');
 const path = require('path');
+const fs = require('fs');
 
 const AGENT_ENTRY = path.join(__dirname, '..', 'agent-b.js');
 const AGENT_CWD = path.join(__dirname, '..');
@@ -51,11 +52,17 @@ async function handle(msg) {
       break;
     case 'start': {
       if (await portOpen()) { send({ type: 'started', reused: true }); break; } // 已在跑（手动起的/上次没杀）
+      // 便携包自带 ffmpeg/ffplay（相对本文件：../../ffmpeg/），存在则注入给 agent，否则走 PATH
+      const ffmpegExe = path.join(__dirname, '..', '..', 'ffmpeg', 'ffmpeg.exe');
+      const ffplayExe = path.join(__dirname, '..', '..', 'ffmpeg', 'ffplay.exe');
+      const bundled = fs.existsSync(ffmpegExe) && fs.existsSync(ffplayExe)
+        ? { FFMPEG_PATH: ffmpegExe, FFPLAY_PATH: ffplayExe }
+        : {};
       agent = spawn(process.execPath, [AGENT_ENTRY, '--bridge'], {
         stdio: 'ignore',
         windowsHide: true,
         cwd: AGENT_CWD,
-        env: { ...process.env, ...envFromConfig(msg.config) }, // 用户的 API key 作为环境变量注入（agent 的 .env 加载不会覆盖已有值）
+        env: { ...process.env, ...envFromConfig(msg.config), ...bundled }, // 用户 API key + 便携 ffmpeg 注入
       });
       agent.on('exit', () => { agent = null; });
       try {
