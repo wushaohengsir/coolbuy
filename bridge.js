@@ -29,10 +29,12 @@ const { WebSocketServer } = require('ws');
 const DEFAULT_PORT = 7901;
 
 class Bridge {
-  constructor({ onStart, onStop, onInterview, status, port } = {}) {
+  constructor({ onStart, onStop, onInterview, onEnd, onPageUpdate, status, port } = {}) {
     this.onStart = onStart;
-    this.onStop = onStop;
+    this.onStop = onStop;        // Stop 键：暂停/恢复语音（软停）
     this.onInterview = onInterview;
+    this.onEnd = onEnd;          // 结束会话（红色 Start 杀进程前先落盘结论）
+    this.onPageUpdate = onPageUpdate;
     this.status = status || (() => ({})); // 引擎状态快照（ready 时给新连上的面板做状态继承）
     this.port = port || Number(process.env.BRIDGE_PORT) || DEFAULT_PORT;
     this.clients = new Set();
@@ -62,8 +64,10 @@ class Bridge {
     try { msg = JSON.parse(raw); } catch { return; }
     switch (msg.type) {
       case 'start': this.onStart?.(msg.page || {}); break;
-      case 'stop': this.onStop?.(); break;
+      case 'stop': this.onStop?.(); break;                       // 暂停/恢复
+      case 'end': this.onEnd?.(); break;                         // 结束会话（杀进程前落盘）
       case 'interview': this.onInterview?.(); break;
+      case 'page_update': this.onPageUpdate?.(msg.page || {}); break;
       case 'page_detail': {
         const resolve = this.pending.get(msg.id);
         if (resolve) { this.pending.delete(msg.id); resolve(msg.detail || null); }

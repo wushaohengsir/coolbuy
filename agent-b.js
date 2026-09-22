@@ -183,6 +183,7 @@ function createVoiceEngine({ onEvent } = {}) {
   let currentAbort = null;            // 在途 LLM 请求的 AbortController
   let mic = null;
   let active = false;
+  let paused = false;                 // Stop 软停状态（暂停语音但会话保留）
 
   const norm = (s) => (s || '').replace(/[\s，。！？,.!?~…、；：]/g, '');
   const setMode = (m) => { mode = m; emit({ type: 'state', state: m }); };
@@ -311,16 +312,39 @@ function createVoiceEngine({ onEvent } = {}) {
       utterChain = utterChain.then(() => runReply({ isInterview: true }));
     },
 
-    /** Stop：结束语音交互（让小冷别再说话、关麦克风），仅此而已——
-     *  不代表"用户不想买了"。结论判定在 tools.concludeSession()（业务规则唯一归属处）。 */
+    /** Stop 键 = 暂停/恢复语音（软停）：强制小冷闭嘴并停止监听，会话保留；再按恢复 */
+    togglePause() {
+      if (!active) { emit({ type: 'sys', text: '当前没有进行中的会话' }); return; }
+      paused = !paused;
+      if (paused) {
+        interrupt();          // 静音 + abort 在途 LLM
+        vad.pause();          // 停止监听（丢弃音频，状态保留）
+        setMode('paused');
+        emit({ type: 'sys', text: '已暂停：小冷闭嘴、停止监听。再按 Stop 恢复' });
+      } else {
+        vad.resume();
+        setMode('listening');
+        emit({ type: 'sys', text: '已恢复，可以继续说话' });
+      }
+    },
+
+    /** 会话中页面变化（切换 SKU/款式）时刷新 Agent 快照 */
+    updatePage(page) {
+      if (!page) return;
+      const merged = T.updatePage(page);
+      if (merged) emit({ type: 'sys', text: `页面已更新：${merged.item || ''} ¥${merged.price ?? '?'}（${merged.promo || ''}）` });
+    },
+
+    /** 结束会话（红色 Start 杀进程前先落盘结论；进程留下） */
     stop() {
       if (!active) { emit({ type: 'sys', text: '当前没有进行中的会话' }); return; }
       active = false;
+      paused = false;
       interrupt();
       try { mic?.kill(); } catch {}
       mic = null;
       vad.setBargeMode(false);
-      vad.resume(); // 清空缓冲与状态机
+      vad.resume(); // 清空缓冲与状态机（不重置 LSTM）
       const { outcome, insistCount } = T.concludeSession();
       setMode('idle');
       emit({ type: 'outcome', outcome, insistCount });
@@ -337,9 +361,11 @@ if (has('--bridge')) {
   });
   bridge = new Bridge({
     onStart: (page) => engine.start(page),
-    onStop: () => engine.stop(),
+    onStop: () => engine.togglePause(),          // Stop 键：暂停/恢复
+    onEnd: () => engine.stop(),                  // 红色 Start 杀进程前落盘结论
     onInterview: () => engine.interview(),
-    status: () => ({ active: engine.active }), // 新面板连上时继承状态用
+    onPageUpdate: (page) => engine.updatePage(page),
+    status: () => ({ active: engine.active }),   // 新面板连上时继承状态用
   });
   // 大脑的"眼睛"：get_page_context 工具深挖时向插件要实时 DOM 详情
   T.setPageDetailFetcher(() => bridge.fetchPage());

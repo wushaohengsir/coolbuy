@@ -10,10 +10,10 @@ const path = require('path');
 const ort = require('onnxruntime-node');
 
 const FRAME_SAMPLES = 512;       // Silero 要求 512 @ 16kHz
-const START_HITS = 4;            // ~0.13s 连续人声起判
+const START_HITS = 4;            // 起判所需人声帧数（漏桶计数，非严格连续）
 const END_MISSES = 16;           // ~0.5s 无声判停（无语义判停时的默认）
 const PRE_BUFFER_FRAMES = 25;    // ~0.8s 句首预缓冲
-const PROB_THRESHOLD = 0.35;     // 人声概率阈值（0.7 太严：远麦/小声/合成音都偏低）
+const PROB_THRESHOLD = 0.30;     // 人声概率阈值（静音 ~0.00，人声 0.3~0.8，0.30 干净分离）
 
 // barge 模式（AI 播放中）：扬声器回声会串进麦克风，起判门槛抬高防误打断
 const BARGE_START_HITS = 12;     // ~0.4s 连续人声才算用户抢话
@@ -100,23 +100,6 @@ class SileroVad {
     step().catch(() => { this._busy = false; });
   }
 
-  async _processFrame(frame) {
-    // s16le → float32
-    const floats = new Float32Array(FRAME_SAMPLES);
-    for (let i = 0; i < FRAME_SAMPLES; i++) floats[i] = frame.readInt16LE(i * 2) / 32768;
-
-    const feeds = {
-      input: new ort.Tensor('float32', floats, [1, FRAME_SAMPLES]),
-      state: this.lstmState || new ort.Tensor('float32', new Float32Array(256), [2, 1, 128]),
-      sr: new ort.Tensor('int64', BigInt64Array.from([16000n]), []),
-    };
-    const out = await this.session.run(feeds);
-    const prob = out.output.data[0];
-    this.lstmState = out.stateN;
-
-    this._onProb(prob, frame);
-  }
-
   _onProb(prob, frame) {
     const threshold = this.barge ? BARGE_THRESHOLD : PROB_THRESHOLD;
     const startHits = this.barge ? BARGE_START_HITS : START_HITS;
@@ -124,8 +107,9 @@ class SileroVad {
     if (this.state === 'idle') {
       this.preBuffer.push(frame);
       if (this.preBuffer.length > PRE_BUFFER_FRAMES) this.preBuffer.shift();
+      // 漏桶计数：人声 +1 / 无人声 -1（不归零）。低概率闪烁人声也能起判
       if (isVoice) {
-        this.hitCount += 1;
+        this.hitCount = Math.min(this.hitCount + 1, startHits);
         if (this.hitCount >= startHits) {
           this.state = 'active';
           this.speechBuf = [...this.preBuffer];
@@ -135,7 +119,7 @@ class SileroVad {
           this.onSpeechStart?.();
         }
       } else {
-        this.hitCount = 0;
+        this.hitCount = Math.max(this.hitCount - 1, 0);
       }
     } else if (this.state === 'active') {
       this.speechBuf.push(frame);
@@ -181,6 +165,9 @@ class SileroVad {
     this.speechBuf = [];
     this.missCount = 0;
     this._analyzed = false;
+    this.hitCount = 0;
+    // 注意：不要重置 lstmState！Silero v5 的状态必须跨轮连续流动，
+    // 重置会把手动归零成退化态，导致下一轮概率塌成 ~0（多轮识别不行的真正根因）。
     this.onSpeechEnd?.(audio);
   }
 
@@ -203,8 +190,7 @@ class SileroVad {
     this.preBuffer = [];
     this.hitCount = 0;
     this.missCount = 0;
-    this.state_tensor = null; // （保留兼容）LSTM 状态重置
-    this.lstmState = null;
+    // 不重置 lstmState：Silero v5 状态必须连续流动，暂停恢复也不该归零（否则下一轮概率塌）
   }
 }
 

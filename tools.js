@@ -109,6 +109,13 @@ function startSession(pageContext) {
   return { ok: true };
 }
 
+/** 会话中页面变化（用户切换 SKU/款式，价格变了）时刷新快照 */
+function updatePage(pageContext) {
+  if (!session.active) return null;
+  session.page = { ...session.page, ...pageContext };
+  return session.page;
+}
+
 function stopSession(outcome) {
   if (!session.active) return { ok: false, error: 'not_active' };
   session.active = false;
@@ -133,4 +140,4 @@ function concludeSession() {
   return { outcome, insistCount, record: rec.record || null };
 }
 
-module.exports = { toolSchemas, executeTool, startSession, stopSession, concludeSession, setPageDetailFetcher, session, state };
+module.exports = { toolSchemas, executeTool, startSession, stopSession, concludeSession, updatePage, setPageDetailFetcher, session, state };

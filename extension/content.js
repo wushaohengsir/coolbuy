@@ -152,6 +152,7 @@
         if (ev.state === 'listening') setStatus('在听…', '开口说话，说完停一下');
         else if (ev.state === 'thinking') setStatus('思考中…', '');
         else if (ev.state === 'speaking') setStatus('小冷说话中', '可以直接抢话打断');
+        else if (ev.state === 'paused') setStatus('已暂停', '再按 Stop 恢复说话');
         else if (ev.state === 'idle') setStatus('已结束', '按 Start 再来一轮');
         break;
       case 'user':
@@ -300,8 +301,8 @@
         launching = false;
       }
     } else {
-      // 红色 Start = 硬杀：结束会话 + 杀死本地进程
-      sendCmd({ type: 'stop' });
+      // 红色 Start = 硬杀：先落盘结论，再杀本地进程
+      sendCmd({ type: 'end' });
       try { await chrome.runtime.sendMessage({ type: 'coolbuy:shutdown' }); } catch {}
       agentRunning = false;
       setStartBtn(false);
@@ -311,9 +312,28 @@
     }
   };
 
-  // Stop = 软停：只停止语音对话，本地进程留着（下次 Start 秒开）
+  // Stop = 软停：暂停/恢复语音（会话保留，本地进程留热）
   $('.stop').onclick = () => sendCmd({ type: 'stop' });
   $('.interview').onclick = () => sendCmd({ type: 'interview' });
+
+  // ---------- 页面变化侦测：切换 SKU/款式导致价格变化时，推给 Agent 更新快照 ----------
+  let lastPageSig = '';
+  function pageSig() { const p = scrapePage(); return `${p.item}|${p.price}|${p.promo}`; }
+  function watchPageChanges() {
+    lastPageSig = pageSig();
+    let timer = null;
+    const check = () => {
+      const now = pageSig();
+      if (now !== lastPageSig) {
+        lastPageSig = now;
+        refreshPageCard(); // 面板 PAGE 卡实时刷新
+        if (wsReady) sendCmd({ type: 'page_update', page: scrapePage() });
+      }
+    };
+    const obs = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(check, 800); });
+    obs.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true });
+  }
+  watchPageChanges();
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.type === 'coolbuy:toggle') {
