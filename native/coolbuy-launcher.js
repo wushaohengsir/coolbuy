@@ -92,10 +92,26 @@ async function waitPort(timeoutMs) {
 }
 
 function killAgent() {
-  if (!agent) return;
-  // Windows：杀整棵进程树（agent 还拖着 ffmpeg/ffplay 子进程）
-  try { spawn('taskkill', ['/pid', String(agent.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {}
+  // 优先按"监听 7901 的 PID"杀（涵盖手动 node agent-b.js --bridge 起的进程），
+  // 找不到再退回自己 spawn 的 child.pid。杀整棵进程树（agent 还拖着 ffmpeg/ffplay）
+  const pid = findBridgePid() || (agent ? agent.pid : null);
+  if (pid) {
+    try { spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {}
+  }
   agent = null;
+}
+
+/** 找 7901 端口 LISTENING 的进程 PID（Windows netstat） */
+function findBridgePid() {
+  try {
+    const { execSync } = require('child_process');
+    const out = execSync('netstat -ano -p tcp', { encoding: 'utf8', windowsHide: true });
+    for (const line of out.split(/\r?\n/)) {
+      const m = line.match(/LISTENING\s+(\d+)/);
+      if (m && new RegExp(`:${BRIDGE_PORT}\\s`).test(line)) return parseInt(m[1], 10);
+    }
+  } catch {}
+  return null;
 }
 
 function shutdown() {
