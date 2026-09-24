@@ -128,21 +128,6 @@ dist/                      构建产物，不提交 Git
 - 公开发布二进制前，应继续完善本地桥的一次性 token 握手。
 - `.env`、`extension.pem`、`dist/`、`models/` 不进入 Git 仓库。
 
-## Chrome 扩展看起来消失
-
-如果只有 COOLBUY 在关闭 Chrome 后消失，而其他扩展保留，优先检查是否残留了旧扩展 ID。项目早期没有固定 `key` 时会产生旧 ID `kfbmp...`，后来加入固定 `key` 后 ID 变为 `klnciaf...`。旧记录和新记录指向同一个 `extension` 目录时，Chrome 重启可能清理其中一个。
-
-修复方式：
-
-1. 打开 `chrome://extensions`。
-2. 如果出现两个 COOLBUY，先移除全部 COOLBUY 卡片。
-3. 点击“加载已解压的扩展程序”，只重新加载一次 `F:\sale\coolbuy\extension`。
-4. 确认扩展 ID 为 `klnciafcpikgfonpgllfmldklfljolac`。
-5. 重新保存 LLM API Key 和豆包 TTS 凭据，因为移除旧扩展会清空其本地存储。
-6. 完全退出 Chrome 后重开，确认仍只有一个 COOLBUY。
-
-用户配置不同也会导致扩展看起来消失，但那种情况通常在切换 Chrome 用户后出现，与这里“只有 COOLBUY 消失”的症状不同。
-
 ## 下载
 
 - GitHub：https://github.com/wushaohengsir/coolbuy

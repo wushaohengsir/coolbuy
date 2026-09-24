@@ -60,16 +60,6 @@ macOS 第一次录音时，需要允许浏览器或终端访问麦克风。
 
 Chrome、Edge、Chromium、Brave 都有独立的用户配置。扩展安装在哪个用户配置，就必须从同一个用户配置打开。不要用访客模式或无痕模式判断安装是否成功。
 
-如果关闭 Chrome 后只有 COOLBUY 消失，而其他扩展保持正常，优先按下面的方式重新安装：
-
-1. 打开 `chrome://extensions`，移除全部 COOLBUY 卡片。
-2. 只重新加载一次扩展目录。
-3. 确认扩展 ID 是 `klnciafcpikgfonpgllfmldklfljolac`。
-4. 重新填写 LLM API Key 和可选的豆包 TTS 凭据，因为移除扩展会清空本机配置。
-5. 完全退出 Chrome 再打开，确认扩展只出现一次且仍保留。
-
-旧 ID `kfbmp...` 来自加入固定 key 之前的版本。新旧两条记录指向同一个扩展目录时，Chrome 重启可能清理其中一个。
-
 ## 首次配置
 
 1. 打开任意电商商品详情页。
@@ -125,8 +115,6 @@ THIRD_PARTY_NOTICES.md      第三方软件说明
 | 按 Start 后启动失败 | Windows 查看 `app` 目录；macOS/Linux 在终端运行 `./node/node app/agent-b.js --bridge` |
 | 识别不到麦克风 | 检查系统麦克风权限；重新加载设备列表；确认 ffmpeg 支持当前音频后端 |
 | 没有声音 | 检查系统输出设备和 `ffplay` 是否可执行 |
-| Chrome 关闭后看不到扩展 | 检查是否切换了 Chrome 用户配置；打开 `chrome://version` 确认配置路径 |
-| Chrome 中同时出现两个 COOLBUY | 移除全部旧卡片，再重新加载一次扩展目录。旧的 `kfbmp...` 是固定 key 之前产生的重复 ID |
 | 不想安装 Chrome | 改用 Edge、Chromium 或 Brave，安装脚本均已覆盖 |
 | 想使用更好的 TTS | 选择云端豆包，填写火山引擎 App ID 和 Access Key |
 | 本地识别较慢 | 靠近麦克风，使用完整短句；CPU 推理会受机器性能影响 |
