@@ -179,7 +179,7 @@ async function prepareFfmpeg() {
 function shouldSkipSource(name, fullPath, stat) {
   const excludedNames = new Set([
     '.git', '.env', '.env.local', 'node_modules', 'models', 'dist', 'data',
-    'extension.pem', 'make-portable.js', 'npm-debug.log',
+    'extension.pem', 'make-portable.js', 'make-agent-kit.js', 'npm-debug.log',
     'com.coolbuy.launcher.json', 'coolbuy-launcher.reg', 'launch.bat', 'launch.sh',
   ]);
   if (excludedNames.has(name)) return true;
@@ -238,7 +238,10 @@ function writeLaunchers() {
       'echo.',
       'echo ================================================',
       'echo   完成！剩余两步（浏览器安全限制，无法自动化）：',
-      'echo   1. 打开 chrome://extensions → 开启开发者模式',
+      'echo   1. 打开浏览器扩展管理页 → 开启开发者模式',
+      'echo      Chrome/Chromium: chrome://extensions',
+      'echo      Edge: edge://extensions',
+      'echo      Brave: brave://extensions',
       'echo      → 加载已解压的扩展程序 → 选择 app\\extension',
       'echo   2. 完全关闭并重启浏览器',
       'echo ================================================',

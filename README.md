@@ -63,7 +63,10 @@ chmod +x install.sh
 
 然后：
 
-1. 打开 `chrome://extensions`，开启开发者模式。
+1. 打开浏览器的扩展管理页并开启开发者模式：
+   - Chrome / Chromium：`chrome://extensions`
+   - Edge：`edge://extensions`
+   - Brave：`brave://extensions`
 2. 选择“加载已解压的扩展程序”。
 3. 选择包内的 `app/extension`。
 4. 完全退出并重新启动浏览器。
@@ -132,7 +135,7 @@ Chrome 的每个用户配置都有独立的扩展列表。若 Chrome 有多个�
 排查方式：
 
 1. 打开 `chrome://version`，确认 `配置文件路径` 和安装扩展时一致。
-2. 打开 `chrome://extensions`，确认开发者模式仍开启，并能看到 COOLBUY。
+2. 打开对应浏览器的扩展管理页，确认开发者模式仍开启，并能看到 COOLBUY。
 3. 不要使用访客模式或无痕模式判断扩展是否被删除。
 4. 如果任务栏图标只是不显示，在扩展菜单中重新固定 COOLBUY。
 

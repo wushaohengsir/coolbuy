@@ -22,7 +22,10 @@
 
 1. 解压便携包。
 2. 双击 `install.bat`。
-3. 打开 `chrome://extensions`，开启开发者模式。
+3. 打开浏览器的扩展管理页并开启开发者模式：
+   - Chrome / Chromium：`chrome://extensions`
+   - Edge：`edge://extensions`
+   - Brave：`brave://extensions`
 4. 点击“加载已解压的扩展程序”，选择 `app\extension`。
 5. 完全退出并重新启动浏览器。
 
@@ -36,7 +39,10 @@
    ./install.sh
    ```
 
-3. 打开 `chrome://extensions`，开启开发者模式。
+3. 打开浏览器的扩展管理页并开启开发者模式：
+   - Chrome / Chromium：`chrome://extensions`
+   - Edge：`edge://extensions`
+   - Brave：`brave://extensions`
 4. 点击“加载已解压的扩展程序”，选择 `app/extension`。
 5. 完全退出并重新启动浏览器。
 
@@ -46,7 +52,7 @@ macOS 第一次录音时，需要允许浏览器或终端访问麦克风。
 
 安装脚本会同时注册 Chrome、Edge、Chromium 和 Brave 的本地启动器。用户可以选择自己已经安装的浏览器：
 
-1. 打开该浏览器的扩展管理页。
+1. 打开该浏览器的扩展管理页。Chrome / Chromium 使用 `chrome://extensions`，Edge 使用 `edge://extensions`，Brave 使用 `brave://extensions`。
 2. 开启开发者模式。
 3. 选择“加载已解压的扩展程序”。
 4. 选择包内的 `app/extension`。
