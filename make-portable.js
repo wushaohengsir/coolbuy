@@ -180,6 +180,7 @@ function shouldSkipSource(name, fullPath, stat) {
   const excludedNames = new Set([
     '.git', '.env', '.env.local', 'node_modules', 'models', 'dist', 'data',
     'extension.pem', 'make-portable.js', 'npm-debug.log',
+    'com.coolbuy.launcher.json', 'coolbuy-launcher.reg', 'launch.bat', 'launch.sh',
   ]);
   if (excludedNames.has(name)) return true;
   if (stat.isFile()) {
