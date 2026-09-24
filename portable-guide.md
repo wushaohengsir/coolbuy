@@ -118,6 +118,7 @@ THIRD_PARTY_NOTICES.md      第三方软件说明
 | 识别不到麦克风 | 检查系统麦克风权限；重新加载设备列表；确认 ffmpeg 支持当前音频后端 |
 | 没有声音 | 检查系统输出设备和 `ffplay` 是否可执行 |
 | Chrome 关闭后看不到扩展 | 检查是否切换了 Chrome 用户配置；打开 `chrome://version` 确认配置路径 |
+| Chrome 中同时出现两个 COOLBUY | 移除全部旧卡片，再重新加载一次扩展目录。旧的 `kfbmp...` 是固定 key 之前产生的重复 ID |
 | 不想安装 Chrome | 改用 Edge、Chromium 或 Brave，安装脚本均已覆盖 |
 | 想使用更好的 TTS | 选择云端豆包，填写火山引擎 App ID 和 Access Key |
 | 本地识别较慢 | 靠近麦克风，使用完整短句；CPU 推理会受机器性能影响 |
