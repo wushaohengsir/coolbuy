@@ -16,11 +16,11 @@
  */
 
 'use strict';
-const { spawn } = require('child_process');
 const crypto = require('crypto');
 const T = require('./tools');
 const { think, interview } = require('./brain');
 const { AsrSession } = require('./asr'); // --asr-test 专用（豆包云端链路测试）
+const { spawnAudioCapture } = require('./audio');
 require('./agent-env')();
 
 // Provider 装配（ASR/TTS 可插拔，选择逻辑见 providers.js）
@@ -169,11 +169,7 @@ if (has('--vad-debug')) {
     if (frameIdx++ % 5 === 0) console.log(c.dim(`    p=${p.toFixed(2)} ${p >= 0.30 ? 'V' : '·'} state=${vad.state} hit=${vad.hitCount}`));
     return orig(p, f);
   };
-  const mic = spawn(process.env.FFMPEG_PATH || 'ffmpeg', [
-    '-hide_banner', '-loglevel', 'error',
-    '-f', 'dshow', '-i', process.env.MIC_DEVICE || 'audio=麦克风阵列 (Realtek(R) Audio)',
-    '-ar', '16000', '-ac', '1', '-f', 's16le', '-',
-  ], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const mic = spawnAudioCapture(process.env.MIC_DEVICE);
   mic.stdout.on('data', (chunk) => vad.write(chunk));
   console.log(c.dim('\n  ── VAD 调试：开口说话，观察 p 值。p<0.30 是静音，人声应 >0.30 并触发[起话]。Ctrl+C 退出 ──\n'));
   process.on('SIGINT', () => { try { mic.kill(); } catch {} process.exit(0); });
@@ -328,11 +324,7 @@ function createVoiceEngine({ onEvent } = {}) {
       active = true;
       emit({ type: 'sys', text: `会话开始：${page.item || '未知商品'} ¥${page.price ?? '?'}（${page.promo || '无促销话术'}）` });
       setMode('listening');
-      mic = spawn(process.env.FFMPEG_PATH || 'ffmpeg', [
-        '-hide_banner', '-loglevel', 'error',
-        '-f', 'dshow', '-i', process.env.MIC_DEVICE || 'audio=麦克风阵列 (Realtek(R) Audio)',
-        '-ar', '16000', '-ac', '1', '-f', 's16le', '-',
-      ], { stdio: ['ignore', 'pipe', 'inherit'] });
+      mic = spawnAudioCapture(process.env.MIC_DEVICE);
       mic.stdout.on('data', (chunk) => vad.write(chunk));
       mic.on('error', (e) => emit({ type: 'error', message: `麦克风启动失败: ${e.message}` }));
     },

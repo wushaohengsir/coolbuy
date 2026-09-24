@@ -1,16 +1,20 @@
 'use strict';
 // 录 5 秒语音 → 直接送 ASR 识别
-const { spawn } = require('child_process');
 const fs = require('fs');
 const { AsrSession } = require('./asr');
+const { spawnAudioCapture } = require('./audio');
 
 console.log('=== 录音 5 秒，请对麦克风说一句话（如：我想买这个耳机）===');
-const ff = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'dshow',
-  '-i', 'audio=麦克风阵列 (Realtek(R) Audio)', '-ar', '16000', '-ac', '1',
-  '-f', 's16le', '-t', '5', '-y', 'mic_live.pcm'], { stdio: ['ignore', 'ignore', 'inherit'] });
+const ff = spawnAudioCapture(process.env.MIC_DEVICE, {
+  stdio: ['ignore', 'pipe', 'inherit'],
+});
+const chunks = [];
+ff.stdout.on('data', (chunk) => chunks.push(chunk));
+setTimeout(() => { try { ff.kill('SIGINT'); } catch {} }, 5000);
 
 ff.on('exit', () => {
-  const buf = fs.readFileSync('mic_live.pcm');
+  const buf = Buffer.concat(chunks);
+  fs.writeFileSync('mic_live.pcm', buf);
   let max = 0;
   for (let i = 0; i < buf.length; i += 2) { const a = Math.abs(buf.readInt16LE(i)); if (a > max) max = a; }
   console.log(`录音峰值: ${max} ${max > 3000 ? '✔' : '（偏弱，建议离麦克风近一点/大声点）'}`);

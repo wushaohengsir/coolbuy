@@ -7,7 +7,7 @@
  *   3. node agent.js --list-dev # 列出音频设备（换麦克风用）
  *
  * 音频链路：
- *   上行：ffmpeg dshow 抓麦克风 → 16kHz mono s16le → WS
+ *   上行：ffmpeg 当前平台后端抓麦克风 → 16kHz mono s16le → WS
  *   下行：WS → 24kHz mono f32le → ffplay 播放
  */
 
@@ -20,6 +20,7 @@ const crypto = require('crypto');
 const WebSocket = require('ws');
 const P = require('./protocol');
 const { systemRole, purchaseContext } = require('./scenario');
+const { getFfmpegPath, getFfplayPath, listAudioDevices, spawnAudioCapture } = require('./audio');
 
 // ---- .env 手动解析 ----
 function loadEnv() {
@@ -37,11 +38,10 @@ const ACCESS_KEY = process.env.DOUBAO_ACCESS_KEY;
 const URL = 'wss://openspeech.bytedance.com/api/v3/realtime/dialogue';
 const PUBLIC_APP_KEY = 'PlgvMymc7f3tQnJ6'; // 该产品固定公共 App-Key
 
-// 默认麦克风：Realtek（dshow 友好名，node spawn 传中文无编码问题）
-const MIC_DEVICE = process.env.MIC_DEVICE || 'audio=麦克风 (Realtek(R) Audio)';
+const MIC_DEVICE = process.env.MIC_DEVICE || '';
 
-const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
-const FFPLAY = process.env.FFPLAY_PATH || 'ffplay';
+const FFMPEG = getFfmpegPath();
+const FFPLAY = getFfplayPath();
 
 // ---- 工具 ----
 const c = {
@@ -59,9 +59,10 @@ const log = {
 
 // ---- 列设备模式 ----
 if (process.argv.includes('--list-dev')) {
-  const ff = spawn(FFMPEG, ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { stdio: ['ignore', 'pipe', 'pipe'] });
-  ff.stderr.on('data', (d) => process.stdout.write(d));
-  ff.on('exit', () => log.sys('把想要的设备 alternative name 填到 .env 的 MIC_DEVICE（audio= 前缀保留）'));
+  listAudioDevices().then((devices) => {
+    for (const device of devices) console.log(`  ${device.label}  [${device.value}]`);
+    log.sys('把需要的设备值写入环境变量 MIC_DEVICE');
+  });
   return;
 }
 
@@ -87,12 +88,8 @@ const player = spawn(FFPLAY, [
 player.stdin.on('error', () => {}); // 播放器退出后忽略写入错误，避免进程崩溃
 player.on('exit', (code) => { if (!exiting) log.sys(`播放器已退出（code ${code}），语音将无法播放`); });
 
-// ---- 麦克风：ffmpeg dshow → 16kHz mono s16le ----
-const mic = spawn(FFMPEG, [
-  '-hide_banner', '-loglevel', 'error',
-  '-f', 'dshow', '-i', MIC_DEVICE,
-  '-ar', '16000', '-ac', '1', '-f', 's16le', '-',
-], { stdio: ['ignore', 'pipe', 'inherit'] });
+// ---- 麦克风：当前平台音频后端 → 16kHz mono s16le ----
+const mic = spawnAudioCapture(MIC_DEVICE);
 
 // ---- WS 连接 ----
 const ws = new WebSocket(URL, {

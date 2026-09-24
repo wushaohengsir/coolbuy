@@ -368,7 +368,7 @@
     syncTtsFields(); // 根据 TTS 引擎回填后，正确显示/隐藏字段
   });
 
-  // 麦克风设备：拉本机 dshow 设备列表填充下拉（走 native 启动器跑 ffmpeg）
+  // 麦克风设备：按当前系统拉本机设备列表（走 native 启动器跑 ffmpeg）
   function populateDevices(devices, selected) {
     const sel = $('#MIC_DEVICE');
     sel.innerHTML = '';

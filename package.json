@@ -1,14 +1,20 @@
 {
   "name": "coolbuy",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.1.0",
+  "description": "付款前聊两句的浏览器语音 Agent，帮助用户减少冲动消费。",
   "main": "index.js",
   "scripts": {
+    "portable": "node make-portable.js",
+    "register": "node native/register.js",
+    "list-devices": "node list-dev.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["browser-extension", "voice-agent", "asr", "tts", "llm"],
+  "author": "wushaohengsir",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "commonjs",
   "dependencies": {
     "@huggingface/transformers": "^4.3.0",

@@ -1,10 +1,16 @@
 'use strict';
-const { spawn } = require('child_process');
-const ff = spawn('ffmpeg', ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { stdio: ['ignore', 'pipe', 'pipe'] });
-let out = '';
-ff.stderr.on('data', (d) => { out += d.toString(); });
-ff.on('exit', () => {
-  const lines = out.split('\n').filter((l) => l.includes('(audio)'));
+const { listAudioDevices } = require('./audio');
+
+listAudioDevices().then((devices) => {
   console.log('音频输入设备:');
-  for (const l of lines) console.log(' ', l.split('"')[1]);
+  if (!devices.length) {
+    console.log('  （未发现设备，将使用系统默认麦克风）');
+    return;
+  }
+  for (const device of devices) {
+    console.log(`  ${device.label}  [${device.value}]`);
+  }
+}).catch((error) => {
+  console.error(error.message);
+  process.exit(1);
 });

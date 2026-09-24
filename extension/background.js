@@ -60,14 +60,14 @@ function nativeCall(payload) {
   return new Promise((resolve, reject) => {
     let settled = false;
     const done = (fn, v) => { if (!settled) { settled = true; clearTimeout(timer); fn(v); } };
-    const timer = setTimeout(() => done(reject, '启动器无响应（未注册？运行 node native/register.js <扩展ID>）'), 70000);
+    const timer = setTimeout(() => done(reject, '启动器无响应（未注册？运行 node native/register.js）'), 70000);
     try {
       if (!nativePort) {
         nativePort = chrome.runtime.connectNative(HOST);
         nativePort.onDisconnect.addListener(() => {
           const err = chrome.runtime.lastError?.message;
           nativePort = null;
-          done(reject, err || '启动器连接断开（未注册？运行 node native/register.js <扩展ID>）');
+          done(reject, err || '启动器连接断开（未注册？运行 node native/register.js）');
         });
       }
       nativePort.onMessage.addListener(function onMsg(m) {

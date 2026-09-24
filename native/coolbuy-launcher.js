@@ -13,10 +13,10 @@
  */
 
 'use strict';
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const net = require('net');
 const path = require('path');
-const fs = require('fs');
+const { getFfmpegPath, getFfplayPath, listAudioDevices } = require('../audio');
 
 const AGENT_ENTRY = path.join(__dirname, '..', 'agent-b.js');
 const AGENT_CWD = path.join(__dirname, '..');
@@ -52,15 +52,14 @@ async function handle(msg) {
       break;
     case 'start': {
       if (await portOpen()) { send({ type: 'started', reused: true }); break; } // 已在跑（手动起的/上次没杀）
-      // 便携包自带 ffmpeg/ffplay（相对本文件：../../ffmpeg/），存在则注入给 agent，否则走 PATH
-      const ffmpegExe = path.join(__dirname, '..', '..', 'ffmpeg', 'ffmpeg.exe');
-      const ffplayExe = path.join(__dirname, '..', '..', 'ffmpeg', 'ffplay.exe');
-      const bundled = fs.existsSync(ffmpegExe) && fs.existsSync(ffplayExe)
-        ? { FFMPEG_PATH: ffmpegExe, FFPLAY_PATH: ffplayExe }
-        : {};
+      const bundled = {
+        FFMPEG_PATH: getFfmpegPath(),
+        FFPLAY_PATH: getFfplayPath(),
+      };
       agent = spawn(process.execPath, [AGENT_ENTRY, '--bridge'], {
         stdio: 'ignore',
-        windowsHide: true,
+        windowsHide: process.platform === 'win32',
+        detached: process.platform !== 'win32',
         cwd: AGENT_CWD,
         env: { ...process.env, ...envFromConfig(msg.config), ...bundled }, // 用户 API key + 便携 ffmpeg 注入
       });
@@ -86,33 +85,9 @@ async function handle(msg) {
   }
 }
 
-/** 列出本机 dshow 音频输入设备（ffmpeg -list_devices），返回 {label, value} 列表 */
+/** 列出本机音频输入设备，返回 {label, value} 列表 */
 function listDevices() {
-  return new Promise((resolve) => {
-    const ff = spawn('ffmpeg', ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], {
-      stdio: ['ignore', 'ignore', 'pipe'],
-      windowsHide: true,
-    });
-    let out = '';
-    ff.stderr.on('data', (d) => { out += d; });
-    ff.on('error', () => resolve([]));
-    ff.on('close', () => resolve(parseDevices(out)));
-    setTimeout(() => { try { ff.kill(); } catch {} resolve([]); }, 8000);
-  });
-}
-
-function parseDevices(stderr) {
-  const lines = stderr.split(/\r?\n/);
-  const devices = [];
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/"([^"]+)"\s+\(audio\)/);
-    if (!m) continue;
-    const friendly = m[1];
-    const alt = (lines[i + 1] || '').match(/Alternative name "([^"]+)"/);
-    // 用 alternative name 最稳（友好名可能重名），label 给人看
-    devices.push({ label: friendly, value: alt ? `audio=${alt[1]}` : `audio=${friendly}` });
-  }
-  return devices;
+  return listAudioDevices();
 }
 
 function portOpen() {
@@ -143,20 +118,45 @@ async function waitPort(timeoutMs) {
 }
 
 function killAgent() {
-  // 优先按"监听 7901 的 PID"杀（涵盖手动 node agent-b.js --bridge 起的进程），
-  // 找不到再退回自己 spawn 的 child.pid。杀整棵进程树（agent 还拖着 ffmpeg/ffplay）
+  // 优先按监听 7901 的 PID 杀，涵盖手动启动或复用的 Agent。
   const pid = findBridgePid() || (agent ? agent.pid : null);
-  if (pid) {
-    try { spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {}
+  if (pid && process.platform === 'win32') {
+    try { spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {}
+  } else if (pid) {
+    try { process.kill(-pid, 'SIGTERM'); } catch {
+      try { process.kill(pid, 'SIGTERM'); } catch {}
+    }
   }
   agent = null;
 }
 
-/** 找 7901 端口 LISTENING 的进程 PID（Windows netstat） */
+/** 找 7901 端口监听进程 PID。 */
 function findBridgePid() {
+  if (process.platform === 'win32') return findBridgePidWindows();
+  const lsof = spawnSync('lsof', [
+    '-nP', `-iTCP:${BRIDGE_PORT}`, '-sTCP:LISTEN', '-t',
+  ], { encoding: 'utf8', windowsHide: false });
+  if (lsof.status === 0) {
+    const pid = parseInt((lsof.stdout || '').trim().split(/\s+/)[0], 10);
+    if (pid) return pid;
+  }
+  const ss = spawnSync('ss', ['-ltnp'], { encoding: 'utf8', windowsHide: false });
+  if (ss.status === 0) {
+    for (const line of (ss.stdout || '').split(/\r?\n/)) {
+      if (!new RegExp(`:${BRIDGE_PORT}\\s`).test(line)) continue;
+      const match = line.match(/pid=(\d+)/);
+      if (match) return parseInt(match[1], 10);
+    }
+  }
+  return null;
+}
+
+function findBridgePidWindows() {
   try {
-    const { execSync } = require('child_process');
-    const out = execSync('netstat -ano -p tcp', { encoding: 'utf8', windowsHide: true });
+    const out = spawnSync('netstat', ['-ano', '-p', 'tcp'], {
+      encoding: 'utf8',
+      windowsHide: true,
+    }).stdout || '';
     for (const line of out.split(/\r?\n/)) {
       const m = line.match(/LISTENING\s+(\d+)/);
       if (m && new RegExp(`:${BRIDGE_PORT}\\s`).test(line)) return parseInt(m[1], 10);

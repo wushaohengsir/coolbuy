@@ -1,0 +1,38 @@
+name: Build portable packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: coolbuy-portable-win32-x64
+          - os: ubuntu-latest
+            artifact: coolbuy-portable-linux-x64
+          - os: macos-13
+            artifact: coolbuy-portable-darwin-x64
+          - os: macos-14
+            artifact: coolbuy-portable-darwin-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.12.0
+          cache: npm
+      - run: npm ci
+      - run: npm run portable
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+          if-no-files-found: error
