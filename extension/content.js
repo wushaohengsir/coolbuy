@@ -259,7 +259,7 @@
         </div>
       </div>
       <div class="settings" hidden>
-        <div class="note">key 只存在你本机（chrome.storage.local），不会上传。ASR 已是本地识别，无需填。填完点保存，下次 Start 生效。</div>
+        <div class="note">key 只存在你本机浏览器存储（chrome.storage.local），不会上传。ASR 已是本地识别，无需填。填完点保存，下次 Start 生效。</div>
         <div class="field"><label>TTS 引擎</label>
           <select id="TTS_PROVIDER" style="width:100%;padding:7px 9px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
             <option value="local">本地 Kokoro（免 key，默认）</option>

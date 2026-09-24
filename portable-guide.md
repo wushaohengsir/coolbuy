@@ -16,6 +16,8 @@
 
 ## 安装
 
+浏览器要求：Chrome、Edge、Chromium、Brave 均可，任意一个 Chromium 内核浏览器即可，不是必须安装 Chrome。
+
 ### Windows
 
 1. 解压便携包。
@@ -40,6 +42,18 @@
 
 macOS 第一次录音时，需要允许浏览器或终端访问麦克风。
 
+## 浏览器选择
+
+安装脚本会同时注册 Chrome、Edge、Chromium 和 Brave 的本地启动器。用户可以选择自己已经安装的浏览器：
+
+1. 打开该浏览器的扩展管理页。
+2. 开启开发者模式。
+3. 选择“加载已解压的扩展程序”。
+4. 选择包内的 `app/extension`。
+5. 完全退出并重新打开该浏览器。
+
+Chrome、Edge、Chromium、Brave 都有独立的用户配置。扩展安装在哪个用户配置，就必须从同一个用户配置打开。不要用访客模式或无痕模式判断安装是否成功。
+
 ## 首次配置
 
 1. 打开任意电商商品详情页。
@@ -52,6 +66,17 @@ macOS 第一次录音时，需要允许浏览器或终端访问麦克风。
 5. 刷新并选择本机麦克风。
 6. ASR 和 TTS 默认使用本地模型，不需要额外 Key。
 7. 保存配置，然后按 Start。
+
+### 更好的 TTS 音色
+
+默认 TTS 是本地 Kokoro，不额外收费，也不需要外部 Key。
+
+如果用户希望获得更好的音色和更自然的语音体验，可以选择“云端豆包”。此时需要用户在火山引擎申请：
+
+- App ID，注意不是 Apple ID。
+- Access Key。
+
+在插件设置中选择“云端豆包”，填写以上两项并保存。没有火山引擎凭据时保持“本地 Kokoro”即可。
 
 ## 三键说明
 
@@ -84,12 +109,17 @@ THIRD_PARTY_NOTICES.md      第三方软件说明
 | 按 Start 后启动失败 | Windows 查看 `app` 目录；macOS/Linux 在终端运行 `./node/node app/agent-b.js --bridge` |
 | 识别不到麦克风 | 检查系统麦克风权限；重新加载设备列表；确认 ffmpeg 支持当前音频后端 |
 | 没有声音 | 检查系统输出设备和 `ffplay` 是否可执行 |
+| Chrome 关闭后看不到扩展 | 检查是否切换了 Chrome 用户配置；打开 `chrome://version` 确认配置路径 |
+| 不想安装 Chrome | 改用 Edge、Chromium 或 Brave，安装脚本均已覆盖 |
+| 想使用更好的 TTS | 选择云端豆包，填写火山引擎 App ID 和 Access Key |
 | 本地识别较慢 | 靠近麦克风，使用完整短句；CPU 推理会受机器性能影响 |
 | 端口 7901 被占用 | 关闭占用进程，或在两端同时设置 `BRIDGE_PORT` |
 
 ## Agent 执行要求
 
 - 用户只需要提供 LLM API Key；不要要求用户另外配置 ASR 或 TTS。
+- 默认使用本地 ASR 和本地 Kokoro TTS。豆包 TTS 是可选增强，需要用户自行提供火山引擎 App ID 和 Access Key。
+- Chrome、Edge、Chromium、Brave 都可以使用。
 - 安装过程中可以自动执行脚本和文件操作。
 - 在浏览器中开启开发者模式和加载扩展必须由用户确认。
 - 不要把 `.env`、API Key、本地录音或模型文件提交到 Git。

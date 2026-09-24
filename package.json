@@ -4,6 +4,7 @@
   "description": "付款前聊两句的浏览器语音 Agent，帮助用户减少冲动消费。",
   "main": "index.js",
   "scripts": {
+    "agent-kit": "node make-agent-kit.js",
     "portable": "node make-portable.js",
     "register": "node native/register.js",
     "list-devices": "node list-dev.js",

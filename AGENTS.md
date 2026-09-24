@@ -13,4 +13,6 @@ Rules:
 
 - Never commit `.env`, API keys, local recordings, `models/`, `dist/` or `extension.pem`.
 - Keep Windows, macOS and Linux support working when changing audio, native messaging or packaging code.
+- Chrome, Edge, Chromium and Brave are supported Chromium browsers.
 - The user only supplies an OpenAI-compatible LLM API key. Local ASR/TTS must remain the default.
+- Doubao TTS is optional and requires a Volcano Engine App ID and Access Key, not an Apple ID.
