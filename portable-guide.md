@@ -60,7 +60,15 @@ macOS 第一次录音时，需要允许浏览器或终端访问麦克风。
 
 Chrome、Edge、Chromium、Brave 都有独立的用户配置。扩展安装在哪个用户配置，就必须从同一个用户配置打开。不要用访客模式或无痕模式判断安装是否成功。
 
-Windows 上如果 Chrome 有多个用户，可以建立专用快捷方式，在“目标”后追加 `--profile-directory="Profile 1"`，避免每次打开到另一个用户配置。
+如果关闭 Chrome 后只有 COOLBUY 消失，而其他扩展保持正常，优先按下面的方式重新安装：
+
+1. 打开 `chrome://extensions`，移除全部 COOLBUY 卡片。
+2. 只重新加载一次扩展目录。
+3. 确认扩展 ID 是 `klnciafcpikgfonpgllfmldklfljolac`。
+4. 重新填写 LLM API Key 和可选的豆包 TTS 凭据，因为移除扩展会清空本机配置。
+5. 完全退出 Chrome 再打开，确认扩展只出现一次且仍保留。
+
+旧 ID `kfbmp...` 来自加入固定 key 之前的版本。新旧两条记录指向同一个扩展目录时，Chrome 重启可能清理其中一个。
 
 ## 首次配置
 

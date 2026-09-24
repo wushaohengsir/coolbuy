@@ -130,17 +130,18 @@ dist/                      构建产物，不提交 Git
 
 ## Chrome 扩展看起来消失
 
-Chrome 的每个用户配置都有独立的扩展列表。若 Chrome 有多个用户，扩展只安装在其中某一个用户里，切换到另一个用户后就会看不到。
+如果只有 COOLBUY 在关闭 Chrome 后消失，而其他扩展保留，优先检查是否残留了旧扩展 ID。项目早期没有固定 `key` 时会产生旧 ID `kfbmp...`，后来加入固定 `key` 后 ID 变为 `klnciaf...`。旧记录和新记录指向同一个 `extension` 目录时，Chrome 重启可能清理其中一个。
 
-排查方式：
+修复方式：
 
-1. 打开 `chrome://version`，确认 `配置文件路径` 和安装扩展时一致。
-2. 打开对应浏览器的扩展管理页，确认开发者模式仍开启，并能看到 COOLBUY。
-3. 不要使用访客模式或无痕模式判断扩展是否被删除。
-4. 如果任务栏图标只是不显示，在扩展菜单中重新固定 COOLBUY。
-5. 如果扩展页出现两个 COOLBUY，或扩展 ID 从旧的 `kfbmp...` 变成当前固定 ID `klnciaf...`，请先移除全部 COOLBUY 卡片，再重新加载一次 `extension` 目录。
+1. 打开 `chrome://extensions`。
+2. 如果出现两个 COOLBUY，先移除全部 COOLBUY 卡片。
+3. 点击“加载已解压的扩展程序”，只重新加载一次 `F:\sale\coolbuy\extension`。
+4. 确认扩展 ID 为 `klnciafcpikgfonpgllfmldklfljolac`。
+5. 重新保存 LLM API Key 和豆包 TTS 凭据，因为移除旧扩展会清空其本地存储。
+6. 完全退出 Chrome 后重开，确认仍只有一个 COOLBUY。
 
-Edge 通常只有默认用户配置，因此更容易表现为重启后持续存在。
+用户配置不同也会导致扩展看起来消失，但那种情况通常在切换 Chrome 用户后出现，与这里“只有 COOLBUY 消失”的症状不同。
 
 ## 下载
 
