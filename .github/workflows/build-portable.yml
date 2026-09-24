@@ -16,7 +16,7 @@ jobs:
             artifact: coolbuy-portable-win32-x64
           - os: ubuntu-latest
             artifact: coolbuy-portable-linux-x64
-          - os: macos-13
+          - os: macos-15-intel
             artifact: coolbuy-portable-darwin-x64
           - os: macos-14
             artifact: coolbuy-portable-darwin-arm64
